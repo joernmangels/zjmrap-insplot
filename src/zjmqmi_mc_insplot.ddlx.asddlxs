@@ -1,0 +1,65 @@
+@Metadata.layer: #CUSTOMER
+@UI.headerInfo: {
+  typeName: 'Prueflos',
+  typeNamePlural: 'Prueflose',
+  title: { type: #STANDARD, value: 'InspectionLot' },
+  description: { type: #STANDARD, value: 'InspectionLotText' }
+}
+annotate view ZJMQMI_C_INSPLOT with
+{
+
+@UI.facet:
+[
+   { id: 'Header',     type: #COLLECTION,          label: 'Allgemein',      position: 10 },
+   { id: 'General',    type: #FIELDGROUP_REFERENCE, targetQualifier: 'General',
+     parentId: 'Header', label: 'Stammdaten',        position: 10 },
+   { id: 'DlUlStatus', type: #FIELDGROUP_REFERENCE, targetQualifier: 'DlUlStatus',
+     parentId: 'Header', label: 'Download/Upload',   position: 20 },
+   { id: 'Merkmale',   type: #LINEITEM_REFERENCE,
+     targetElement: '_Merkmale',    targetQualifier: 'Merkmale',
+     label: 'Pruefmerkmale',        position: 20 },
+   { id: 'Protokoll',  type: #LINEITEM_REFERENCE,
+     targetElement: '_ProtEintrag', targetQualifier: 'Protokoll',
+     label: 'Upload-Protokoll',     position: 30 },
+   { id: 'Vormerkliste', type: #LINEITEM_REFERENCE,
+     targetElement: '_DlToken',     targetQualifier: 'Token',
+     label: 'Vormerkliste Download',         position: 25 }
+
+]
+  InspectionLot;
+
+
+//  @UI.facet:
+//  [
+//     { id: 'Header',     type: #COLLECTION,          label: 'Allgemein',      position: 10 },
+//     { id: 'General',    type: #FIELDGROUP_REFERENCE, targetQualifier: 'General',
+//       parentId: 'Header', label: 'Stammdaten',        position: 10 },
+//     { id: 'DlUlStatus', type: #FIELDGROUP_REFERENCE, targetQualifier: 'DlUlStatus',
+//       parentId: 'Header', label: 'Download/Upload',   position: 20 },
+//     { id: 'Merkmale',   type: #LINEITEM_REFERENCE,
+//       targetElement: '_Merkmale',    targetQualifier: 'Merkmale',
+//       label: 'Pruefmerkmale',        position: 20 },
+//     { id: 'Protokoll',  type: #LINEITEM_REFERENCE,
+//       targetElement: '_ProtEintrag', targetQualifier: 'Protokoll',
+//       label: 'Upload-Protokoll',     position: 30 }
+//   ]
+
+
+  //  @UI.facet: [
+  //     {
+  //       id: 'id_allgemein',
+  //       type: #IDENTIFICATION_REFERENCE,
+  //       label: 'Allgemein',
+  //       position: 10
+  //     }
+  //  ]
+  //
+  //  @Consumption.valueHelpDefinition: [ { entity: { name: 'I_InspectionLotVH', element: 'InspectionLot' } } ]
+  //  //  @Search.defaultSearchElement : true
+  //  //  @Search.fuzzinessThreshold : 0.8
+  //  //  @Search.ranking : #HIGH
+  //  @UI: { lineItem: [{ position: 10 }],
+  //         selectionField: [{ position: 10 }] }
+  //  @EndUserText.label: 'Prüflos'
+  //  InspectionLot;
+}

@@ -1,0 +1,35 @@
+unmanaged implementation in class ZJMQMI_BP_INSPLOT unique;
+
+define behavior for ZJMQMI_I_INSPLOT alias InspLot
+  lock master
+{
+  field ( readonly ) InspectionLot;
+  action  download            parameter ZJMQMI_A_DOWNLOAD_PARAM result [1] ZJMQMI_A_DL_RESULT;
+  action  vormerken;
+  action  vormerken_loeschen;
+  action  vormerkliste_leeren;
+  association _ProtEintrag;
+  association _Merkmale;
+  association _DlToken;
+}
+
+define behavior for ZJMQMI_I_INSPLOT_PROT alias ProtEintrag
+  lock dependent by _InspectionLot
+{
+  field ( readonly ) InspectionLot, ProtGuid;
+  association _InspectionLot;
+}
+
+define behavior for ZJMQMI_I_INSPLOT_CHAR alias Merkmal
+  lock dependent by _InspectionLot
+{
+  field ( readonly ) InspectionLot, InspPlanOperationInternalID, InspectionCharacteristic;
+  association _InspectionLot;
+}
+
+define behavior for ZJMQMI_I_INSPLOT_TOKEN alias DlToken
+  lock dependent by _InspectionLot
+{
+  field ( readonly ) InspectionLot, CreatedBy;
+  association _InspectionLot;
+}

@@ -1,0 +1,27 @@
+projection;
+
+define behavior for ZJMQMI_C_INSPLOT alias InspLot
+{
+  use action download;
+  use action vormerken;
+  use action vormerken_loeschen;
+  use action vormerkliste_leeren;
+  use association _ProtEintrag;
+  use association _Merkmale;
+  use association _DlToken;
+}
+
+define behavior for ZJMQMI_C_INSPLOT_PROT alias ProtEintrag
+{
+  use association _InspectionLot;
+}
+
+define behavior for ZJMQMI_C_INSPLOT_CHAR alias Merkmal
+{
+  use association _InspectionLot;
+}
+
+define behavior for ZJMQMI_C_INSPLOT_TOKEN alias DlToken
+{
+  use association _InspectionLot;
+}

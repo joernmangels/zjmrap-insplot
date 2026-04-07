@@ -1,0 +1,7 @@
+define service ZJMQMI_SD_INSPLOT {
+  expose ZJMQMI_C_INSPLOT       as InspectionLot;
+  expose ZJMQMI_C_INSPLOT_PROT  as UploadProtocol;
+  expose ZJMQMI_C_INSPLOT_CHAR  as InspectionCharacteristic;
+  expose ZJMQMI_C_INSPLOT_TOKEN as DownloadToken;
+  expose ZJMQMI_I_STATUS_VH     as StatusValueHelp;
+}

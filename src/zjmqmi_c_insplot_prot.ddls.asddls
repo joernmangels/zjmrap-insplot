@@ -18,6 +18,9 @@ define view entity ZJMQMI_C_INSPLOT_PROT
   @UI.lineItem: [{ qualifier: 'Protokoll', position: 40, label: 'Prüfvorgang' }]
   InspectionOperation,
 
+  @UI.lineItem: [{ qualifier: 'Protokoll', position: 45, label: 'Prüfmerkmal' }]
+  InspectionCharacteristic,
+
   @UI.lineItem: [{ qualifier: 'Protokoll', position: 50, label: 'Status',
                    criticality: 'Status',
                    criticalityRepresentation: #WITH_ICON }]

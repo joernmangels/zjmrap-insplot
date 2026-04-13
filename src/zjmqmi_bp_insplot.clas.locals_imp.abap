@@ -103,16 +103,17 @@ CLASS lcl_handler IMPLEMENTATION.
           target-ProtGuid      = <p>-prot_guid
         ) TO association_links.
         APPEND VALUE #(
-          InspectionLot       = <p>-prueflos
-          ProtGuid            = <p>-prot_guid
-          ProtTimestamp       = <p>-prot_timestamp
-          FileName            = <p>-prot_filename
-          RowNumber           = <p>-prot_rownr
-          InspectionOperation = <p>-prot_inspoper
-          Status              = <p>-prot_status
-          Message             = <p>-prot_msg
-          CreatedBy           = <p>-created_by
-          CreatedAt           = <p>-created_at
+          InspectionLot           = <p>-prueflos
+          ProtGuid                = <p>-prot_guid
+          ProtTimestamp           = <p>-prot_timestamp
+          FileName                = <p>-prot_filename
+          RowNumber               = <p>-prot_rownr
+          InspectionOperation     = <p>-prot_inspoper
+          InspectionCharacteristic = <p>-prot_insp_char
+          Status                  = <p>-prot_status
+          Message                 = <p>-prot_msg
+          CreatedBy               = <p>-created_by
+          CreatedAt               = <p>-created_at
         ) TO result.
       ENDLOOP.
     ENDLOOP.
@@ -418,16 +419,17 @@ CLASS lcl_handler IMPLEMENTATION.
         INTO @DATA(ls).
       IF sy-subrc = 0.
         APPEND VALUE #(
-          InspectionLot       = ls-prueflos
-          ProtGuid            = ls-prot_guid
-          ProtTimestamp       = ls-prot_timestamp
-          FileName            = ls-prot_filename
-          RowNumber           = ls-prot_rownr
-          InspectionOperation = ls-prot_inspoper
-          Status              = ls-prot_status
-          Message             = ls-prot_msg
-          CreatedBy           = ls-created_by
-          CreatedAt           = ls-created_at ) TO result.
+          InspectionLot            = ls-prueflos
+          ProtGuid                 = ls-prot_guid
+          ProtTimestamp            = ls-prot_timestamp
+          FileName                 = ls-prot_filename
+          RowNumber                = ls-prot_rownr
+          InspectionOperation      = ls-prot_inspoper
+          InspectionCharacteristic = ls-prot_insp_char
+          Status                   = ls-prot_status
+          Message                  = ls-prot_msg
+          CreatedBy                = ls-created_by
+          CreatedAt                = ls-created_at ) TO result.
       ENDIF.
     ENDLOOP.
   ENDMETHOD.

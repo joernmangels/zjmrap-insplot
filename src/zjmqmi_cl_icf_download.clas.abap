@@ -5,6 +5,12 @@ CLASS zjmqmi_cl_icf_download DEFINITION
     INTERFACES if_http_extension.
 
   PRIVATE SECTION.
+    TYPES: BEGIN OF ty_code,
+             code     TYPE qpct-code,
+             kurztext TYPE qpct-kurztext,
+           END OF ty_code.
+    TYPES ty_codes TYPE STANDARD TABLE OF ty_code WITH EMPTY KEY.
+
     TYPES: BEGIN OF ty_row,
              prueflosnummer  TYPE c LENGTH 18,
              plangruppe      TYPE c LENGTH 8,
@@ -23,13 +29,17 @@ CLASS zjmqmi_cl_icf_download DEFINITION
              quanqual        TYPE c LENGTH 2,
              merkmalsnummer  TYPE c LENGTH 4,
              kurztext        TYPE c LENGTH 40,
+             pruefmethode    TYPE c LENGTH 40,
+             sollwert_ql     TYPE c LENGTH 30,
+             toleranz_ql     TYPE c LENGTH 4,
+             langtext        TYPE string,
              sollwert_qn     TYPE c LENGTH 20,
              toleranz_ob     TYPE c LENGTH 20,
              toleranz_un     TYPE c LENGTH 20,
-             sollwert_ql     TYPE c LENGTH 8,
-             toleranz_ql     TYPE c LENGTH 4,
              losgroesse      TYPE c LENGTH 10,
-             pruefergebnis   TYPE c LENGTH 20,
+             qc_department   TYPE c LENGTH 1,
+             is_quantitative TYPE abap_bool,
+             codes           TYPE ty_codes,
            END OF ty_row.
     TYPES ty_data TYPE TABLE OF ty_row WITH EMPTY KEY.
 
@@ -43,6 +53,7 @@ CLASS zjmqmi_cl_icf_download DEFINITION
              inspectionmethod               TYPE qamv-pmethode,
              inspectionmethodversion        TYPE qamv-pmtversion,
              inspectionmethodplant          TYPE qamv-qmtb_werks,
+             inspectionmethodtext           TYPE c LENGTH 40,
              inspectionspecification        TYPE qamv-verwmerkm,
              selectedcodeset                TYPE qamv-auswmenge1,
              characteristicattributecatalog TYPE qamv-katalgart1,
@@ -69,6 +80,18 @@ CLASS zjmqmi_cl_icf_download DEFINITION
       IMPORTING lv_lot        TYPE qals-prueflos
       RETURNING VALUE(rs_hdr) TYPE ty_lot_header.
 
+    METHODS _get_codes
+      IMPORTING iv_prueflos     TYPE qals-prueflos
+                iv_vorglfnr     TYPE qamv-vorglfnr
+                iv_merknr       TYPE qamv-merknr
+      RETURNING VALUE(rt_codes) TYPE ty_codes.
+
+    METHODS _get_longtext
+      IMPORTING iv_prueflos     TYPE qals-prueflos
+                iv_vorglfnr     TYPE qamv-vorglfnr
+                iv_merknr       TYPE qamv-merknr
+      RETURNING VALUE(rv_text)  TYPE string.
+
     METHODS _fill_data
       IMPORTING ls_hdr  TYPE ty_lot_header
       CHANGING  lt_data TYPE ty_data.
@@ -94,49 +117,19 @@ ENDCLASS.
 CLASS zjmqmi_cl_icf_download IMPLEMENTATION.
 
   METHOD if_http_extension~handle_request.
-
     DATA lt_data TYPE ty_data.
     DATA(lv_lot_str) = server->request->get_form_field( 'lot' ).
-
-    APPEND VALUE ty_row(
-      prueflosnummer = 'Prueflosnummer'
-      plangruppe     = 'Plangruppe'
-      pgz            = 'PGZ'
-      pgz_text       = 'PGZ-Text'
-      lieferant_nr   = 'Lieferant-Nr'
-      bestell_nr     = 'Bestell-Nr'
-      bestell_pos    = 'Bestell-Pos'
-      material       = 'Material'
-      mstae_text     = 'Mat.-Status'
-      vorgangsnummer = 'Vorgang'
-      vorgang_text   = 'Vorgangs-Beschreibung'
-      fhm            = 'FHM'
-      fhm_text       = 'FHM-Beschreibung'
-      stammerkmal    = 'Stammmerkmal'
-      quanqual       = 'QN/QL'
-      merkmalsnummer = 'Merkmal'
-      kurztext       = 'Kurztext'
-      sollwert_qn    = 'Sollwert QN'
-      toleranz_ob    = 'Toleranz oben'
-      toleranz_un    = 'Toleranz unten'
-      sollwert_ql    = 'Soll-QL'
-      toleranz_ql    = 'Katalog QL'
-      losgroesse     = 'Losgröße'
-      pruefergebnis  = 'Bewertung'
-    ) TO lt_data.
 
     IF lv_lot_str IS NOT INITIAL.
       DATA(lv_lot) = CONV qals-prueflos( lv_lot_str ).
       DATA(ls_hdr) = _get_lot_header( lv_lot ).
       _fill_data( EXPORTING ls_hdr = ls_hdr CHANGING lt_data = lt_data ).
-
       GET TIME STAMP FIELD DATA(lv_ts_single).
       MODIFY zjmqmit_status FROM @( VALUE #(
         prueflos   = lv_lot
         last_dl_at = lv_ts_single
         last_dl_by = sy-uname ) ).
       COMMIT WORK.
-
       _send_xlsx( server  = server
                   lt_data = lt_data
                   lv_name = |{ condense( lv_lot_str ) }.xlsx| ).
@@ -147,7 +140,6 @@ CLASS zjmqmi_cl_icf_download IMPLEMENTATION.
       WHERE created_by = @sy-uname
       ORDER BY prueflos
       INTO TABLE @DATA(lt_lots).
-
     IF lt_lots IS INITIAL.
       server->response->set_status( code = 404 reason = 'Keine Prueflose vorgemerkt' ).
       RETURN.
@@ -162,14 +154,11 @@ CLASS zjmqmi_cl_icf_download IMPLEMENTATION.
         last_dl_at = lv_ts_batch
         last_dl_by = sy-uname ) ).
     ENDLOOP.
-
     DELETE FROM zjmqmit_dl_token WHERE created_by = @sy-uname.
     COMMIT WORK.
-
     _send_xlsx( server  = server
                 lt_data = lt_data
                 lv_name = |Vormerkliste_{ sy-uname }.xlsx| ).
-
   ENDMETHOD.
 
   METHOD _get_lot_header.
@@ -180,7 +169,6 @@ CLASS zjmqmi_cl_icf_download IMPLEMENTATION.
       FROM I_InspectionLot
       WHERE InspectionLot = @lv_lot
       INTO @DATA(ls_il).
-
     rs_hdr-inspectionlot           = ls_il-InspectionLot.
     rs_hdr-billofoperationsgroup   = ls_il-BillOfOperationsGroup.
     rs_hdr-billofoperationsvariant = ls_il-BillOfOperationsVariant.
@@ -191,26 +179,116 @@ CLASS zjmqmi_cl_icf_download IMPLEMENTATION.
     rs_hdr-material                = ls_il-Material.
   ENDMETHOD.
 
+  METHOD _get_codes.
+    SELECT SINGLE katalgart1, auswmenge1, auswmgwrk1
+      FROM qamv
+      WHERE prueflos = @iv_prueflos
+        AND vorglfnr = @iv_vorglfnr
+        AND merknr   = @iv_merknr
+      INTO @DATA(ls_qamv).
+    CHECK sy-subrc = 0
+      AND ls_qamv-katalgart1 IS NOT INITIAL
+      AND ls_qamv-auswmenge1 IS NOT INITIAL.
+    " auswmenge1 = Auswertungsmenge (Auswahlmenge), die Codes stehen in QPAC
+    " auswmgwrk1 = Werk zur Auswertungsmenge (QPAC-Schlüsselfeld)
+    SELECT qpac~code, qpct~kurztext
+      FROM qpac
+      INNER JOIN qpct ON  qpct~katalogart = qpac~katalogart
+                      AND qpct~codegruppe = qpac~codegruppe
+                      AND qpct~code       = qpac~code
+                      AND qpct~version    = '000001'
+                      AND qpct~sprache    = @sy-langu
+      WHERE qpac~katalogart = @ls_qamv-katalgart1
+        AND qpac~werks      = @ls_qamv-auswmgwrk1
+        AND qpac~auswahlmge = @ls_qamv-auswmenge1
+      ORDER BY qpac~code
+      INTO CORRESPONDING FIELDS OF TABLE @rt_codes.
+  ENDMETHOD.
+
+  METHOD _get_longtext.
+    DATA lt_lines     TYPE TABLE OF tline WITH EMPTY KEY.
+    DATA lv_name      TYPE tdobname.
+    DATA le_qamv      TYPE qamv.
+    DATA lv_sprache   TYPE sy-langu.
+    DATA l_objekt     TYPE thead-tdobject.
+    DATA l_textid     TYPE ttxid-tdid.
+    DATA le_textheader TYPE thead.
+    DATA:
+      BEGIN OF qpmk_text,
+        mandt   TYPE sy-mandt,
+        werks   TYPE qamkr-qpmk_werks,
+        mkmnr   TYPE qamkr-verwmerkm,
+        version TYPE qamkr-mkversion,
+        sprache TYPE sy-langu,
+      END  OF qpmk_text.
+
+    SELECT SINGLE * FROM qamv INTO le_qamv
+      WHERE prueflos = iv_prueflos
+        AND vorglfnr = iv_vorglfnr
+        AND merknr   = iv_merknr.
+
+    MOVE sy-langu           TO lv_sprache.
+    MOVE sy-mandt           TO qpmk_text-mandt.
+    MOVE le_qamv-qpmk_werks TO qpmk_text-werks.
+    MOVE le_qamv-verwmerkm  TO qpmk_text-mkmnr.
+    MOVE le_qamv-mkversion  TO qpmk_text-version.
+    MOVE lv_sprache         TO qpmk_text-sprache.
+
+    MOVE 'QPMERKMAL '       TO l_objekt.
+    MOVE 'QPMT'             TO l_textid.
+    lv_name = qpmk_text.
+
+    CALL FUNCTION 'READ_TEXT'
+      EXPORTING
+        id                      = l_textid
+        language                = lv_sprache
+        name                    = lv_name
+        object                  = l_objekt
+      IMPORTING
+        header                  = le_textheader
+      TABLES
+        lines                   = lt_lines
+      EXCEPTIONS
+        id                      = 1
+        language                = 2
+        name                    = 3
+        not_found               = 4
+        object                  = 5
+        reference_check         = 6
+        wrong_access_to_archive = 7
+        OTHERS                  = 8.
+
+    CHECK sy-subrc = 0.
+    LOOP AT lt_lines INTO DATA(ls_line).
+      IF ls_line-tdline IS NOT INITIAL.
+        rv_text = rv_text && condense( ls_line-tdline ) && ' '.
+      ENDIF.
+    ENDLOOP.
+    rv_text = condense( rv_text ).
+  ENDMETHOD.
+
   METHOD _fill_data.
-    DATA lv_pgz_text TYPE c LENGTH 40.
+    DATA lv_pgz_text   TYPE c LENGTH 40.
+    DATA lv_mstae      TYPE mmsta.
+    DATA lv_mstae_text TYPE c LENGTH 40.
+    DATA lt_char       TYPE ty_chars.
+    DATA ls_row        TYPE ty_row.
+
     SELECT SINGLE ktext FROM plko
       WHERE plnty = @ls_hdr-billofoperationstype
         AND plnnr = @ls_hdr-billofoperationsgroup
         AND plnal = @ls_hdr-billofoperationsvariant
       INTO @lv_pgz_text.
 
-    DATA lv_mstae TYPE mmsta.
     SELECT SINGLE mstae FROM mara
       WHERE matnr = @ls_hdr-material
       INTO @lv_mstae.
-    DATA lv_mstae_text TYPE c LENGTH 40.
     IF lv_mstae IS NOT INITIAL.
       SELECT SINGLE mtstb FROM t141t
         WHERE spras = @sy-langu AND mmsta = @lv_mstae
         INTO @lv_mstae_text.
     ENDIF.
 
-    DATA lt_char TYPE ty_chars.
     SELECT ic~InspectionLot              AS inspectionlot,
            ic~InspPlanOperationInternalID AS insplanoperationinternalid,
            ic~InspectionCharacteristic    AS inspectioncharacteristic,
@@ -220,6 +298,7 @@ CLASS zjmqmi_cl_icf_download IMPLEMENTATION.
            ic~InspectionMethod            AS inspectionmethod,
            ic~InspectionMethodVersion     AS inspectionmethodversion,
            ic~InspectionMethodPlant       AS inspectionmethodplant,
+           ic~InspectionMethodText        AS inspectionmethodtext,
            ic~InspectionSpecification     AS inspectionspecification,
            ic~SelectedCodeSet             AS selectedcodeset,
            ic~CharacteristicAttributeCatalog AS characteristicattributecatalog,
@@ -234,50 +313,50 @@ CLASS zjmqmi_cl_icf_download IMPLEMENTATION.
       INTO CORRESPONDING FIELDS OF TABLE @lt_char.
 
     LOOP AT lt_char ASSIGNING FIELD-SYMBOL(<c>).
-      DATA lv_fhm_text TYPE c LENGTH 40.
-      IF <c>-inspectionmethod IS NOT INITIAL.
-        SELECT SINGLE InspectionMethodText
-          FROM I_InspectionMethodVersionText
-          WHERE InspectionMethodPlant   = @<c>-inspectionmethodplant
-            AND InspectionMethod        = @<c>-inspectionmethod
-            AND InspectionMethodVersion = @<c>-inspectionmethodversion
-            AND Language                = @sy-langu
-          INTO @lv_fhm_text.
-      ELSE.
-        CLEAR lv_fhm_text.
+      CLEAR ls_row.
+
+      ls_row-prueflosnummer = <c>-inspectionlot.
+      ls_row-plangruppe     = ls_hdr-billofoperationsgroup.
+      ls_row-pgz            = ls_hdr-billofoperationsvariant.
+      ls_row-pgz_text       = lv_pgz_text.
+      ls_row-lieferant_nr   = ls_hdr-supplier.
+      ls_row-bestell_nr     = ls_hdr-purchasingdocument.
+      ls_row-bestell_pos    = ls_hdr-purchasingdocumentitem.
+      ls_row-material       = ls_hdr-material.
+      ls_row-mstae_text     = lv_mstae_text.
+      ls_row-vorgangsnummer = <c>-inspectionoperation.
+      ls_row-vorgang_text   = <c>-operationtext.
+      ls_row-fhm            = <c>-inspectionmethod.
+      ls_row-fhm_text       = <c>-inspectionmethodtext.
+      ls_row-stammerkmal    = <c>-inspectionspecification.
+      ls_row-quanqual       = COND #( WHEN <c>-inspspecisquantitative = 'X' THEN 'QN' ELSE 'QL' ).
+      ls_row-merkmalsnummer = <c>-inspectioncharacteristic.
+      ls_row-kurztext       = <c>-inspectioncharacteristictext.
+      ls_row-pruefmethode   = <c>-inspectionmethodtext.
+      ls_row-langtext       = _get_longtext(
+        iv_prueflos = <c>-inspectionlot
+        iv_vorglfnr = <c>-insplanoperationinternalid
+        iv_merknr   = <c>-inspectioncharacteristic ).
+      ls_row-losgroesse     = |{ <c>-inspcharacteristicsamplesize }|.
+      IF ls_row-stammerkmal(2) = 'RQ'.
+        ls_row-qc_department = 'X'.
       ENDIF.
 
-      APPEND VALUE ty_row(
-        prueflosnummer = <c>-inspectionlot
-        plangruppe     = ls_hdr-billofoperationsgroup
-        pgz            = ls_hdr-billofoperationsvariant
-        pgz_text       = lv_pgz_text
-        lieferant_nr   = ls_hdr-supplier
-        bestell_nr     = ls_hdr-purchasingdocument
-        bestell_pos    = ls_hdr-purchasingdocumentitem
-        material       = ls_hdr-material
-        mstae_text     = lv_mstae_text
-        vorgangsnummer = <c>-inspectionoperation
-        vorgang_text   = <c>-operationtext
-        fhm            = <c>-inspectionmethod
-        fhm_text       = lv_fhm_text
-        stammerkmal    = <c>-inspectionspecification
-        quanqual       = COND #( WHEN <c>-inspspecisquantitative = 'X' THEN 'QN' ELSE 'QL' )
-        merkmalsnummer = <c>-inspectioncharacteristic
-        kurztext       = <c>-inspectioncharacteristictext
-        sollwert_qn    = COND #( WHEN <c>-inspspecisquantitative = 'X'
-                                 THEN |{ <c>-inspspectargetvalue }| ELSE '' )
-        toleranz_ob    = COND #( WHEN <c>-inspspecisquantitative = 'X'
-                                 THEN |{ <c>-inspspecupperlimit }| ELSE '' )
-        toleranz_un    = COND #( WHEN <c>-inspspecisquantitative = 'X'
-                                 THEN |{ <c>-inspspeclowerlimit }| ELSE '' )
-        sollwert_ql    = COND #( WHEN <c>-inspspecisquantitative <> 'X'
-                                 THEN <c>-selectedcodeset ELSE '' )
-        toleranz_ql    = COND #( WHEN <c>-inspspecisquantitative <> 'X'
-                                 THEN <c>-characteristicattributecatalog ELSE '' )
-        losgroesse     = |{ <c>-inspcharacteristicsamplesize }|
-        pruefergebnis  = 'unbewertet'
-      ) TO lt_data.
+      IF <c>-inspspecisquantitative = 'X'.
+        ls_row-is_quantitative = abap_true.
+        ls_row-sollwert_qn     = |{ <c>-inspspectargetvalue }|.
+        ls_row-toleranz_ob     = |{ <c>-inspspecupperlimit }|.
+        ls_row-toleranz_un     = |{ <c>-inspspeclowerlimit }|.
+      ELSE.
+        ls_row-is_quantitative = abap_false.
+        ls_row-sollwert_ql     = <c>-selectedcodeset.
+        ls_row-toleranz_ql     = <c>-characteristicattributecatalog.
+        ls_row-codes = _get_codes(
+          iv_prueflos = <c>-inspectionlot
+          iv_vorglfnr = <c>-insplanoperationinternalid
+          iv_merknr   = <c>-inspectioncharacteristic ).
+      ENDIF.
+      APPEND ls_row TO lt_data.
     ENDLOOP.
   ENDMETHOD.
 
@@ -290,51 +369,134 @@ CLASS zjmqmi_cl_icf_download IMPLEMENTATION.
   ENDMETHOD.
 
   METHOD _cell.
-    DATA(lc_alpha) = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.
-    DATA lv_off    TYPE i.
-    DATA lv_letter TYPE c LENGTH 1.
-    lv_off    = iv_col - 1.
-    lv_letter = lc_alpha+lv_off(1).
-    rv_xml = |<c r="{ lv_letter }{ iv_row }" t="inlineStr"><is><t>{ _esc( iv_val ) }</t></is></c>|.
+    DATA lc         TYPE c LENGTH 26.
+    DATA lv_col_str TYPE string.
+    DATA lv_q       TYPE i.
+    DATA lv_r       TYPE i.
+    DATA lv_q1      TYPE i.
+    lc = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.
+    lv_q = ( iv_col - 1 ) DIV 26.
+    lv_r = ( iv_col - 1 ) MOD 26.
+    IF lv_q > 0.
+      lv_q1 = lv_q - 1.
+      lv_col_str = lc+lv_q1(1) && lc+lv_r(1).
+    ELSE.
+      lv_col_str = lc+lv_r(1).
+    ENDIF.
+    rv_xml = |<c r="{ lv_col_str }{ iv_row }" t="inlineStr"><is><t>{ _esc( iv_val ) }</t></is></c>|.
   ENDMETHOD.
 
   METHOD _send_xlsx.
-    DATA lv_rows TYPE string.
-    DATA lv_ridx TYPE i VALUE 0.
+    DATA lv_max_codes TYPE i.
+    DATA lv_col_idx   TYPE i.
+    DATA lv_hdr       TYPE string.
+    DATA lv_rows      TYPE string.
+    DATA lv_cells     TYPE string.
+    DATA lv_ridx      TYPE i.
+    DATA lv_cc        TYPE i.
+    DATA lv_cols      TYPE string.
+    DATA lv_dyn_col   TYPE i.
+    DATA lv_sheet     TYPE string.
+    DATA lv_wb        TYPE string.
+    DATA lv_ct        TYPE string.
+    DATA lv_rels      TYPE string.
+    DATA lv_wb_rels   TYPE string.
+    DATA lo_zip       TYPE REF TO cl_abap_zip.
 
+    " Max-Codes über alle QL-Merkmale bestimmen
+    lv_max_codes = 1.
     LOOP AT lt_data ASSIGNING FIELD-SYMBOL(<r>).
+      IF <r>-is_quantitative = abap_false AND lines( <r>-codes ) > lv_max_codes.
+        lv_max_codes = lines( <r>-codes ).
+      ENDIF.
+    ENDLOOP.
+
+    " Header-Zeile (Zeile 1) — fixe Spalten 1-25
+    lv_hdr =   _cell( iv_col = 1  iv_row = 1 iv_val = 'Prueflosnummer'        )
+            && _cell( iv_col = 2  iv_row = 1 iv_val = 'Plangruppe'             )
+            && _cell( iv_col = 3  iv_row = 1 iv_val = 'PGZ'                   )
+            && _cell( iv_col = 4  iv_row = 1 iv_val = 'PGZ-Text'              )
+            && _cell( iv_col = 5  iv_row = 1 iv_val = 'Lieferant-Nr'          )
+            && _cell( iv_col = 6  iv_row = 1 iv_val = 'Bestell-Nr'            )
+            && _cell( iv_col = 7  iv_row = 1 iv_val = 'Bestell-Pos'           )
+            && _cell( iv_col = 8  iv_row = 1 iv_val = 'Material'              )
+            && _cell( iv_col = 9  iv_row = 1 iv_val = 'Mat.-Status'           )
+            && _cell( iv_col = 10 iv_row = 1 iv_val = 'Vorgang'               )
+            && _cell( iv_col = 11 iv_row = 1 iv_val = 'Vorgangs-Beschreibung' )
+            && _cell( iv_col = 12 iv_row = 1 iv_val = 'FHM'                   )
+            && _cell( iv_col = 13 iv_row = 1 iv_val = 'FHM-Beschreibung'      )
+            && _cell( iv_col = 14 iv_row = 1 iv_val = 'Stammmerkmal'          )
+            && _cell( iv_col = 15 iv_row = 1 iv_val = 'QN/QL'                )
+            && _cell( iv_col = 16 iv_row = 1 iv_val = 'Merkmal'               )
+            && _cell( iv_col = 17 iv_row = 1 iv_val = 'Kurztext'              )
+            && _cell( iv_col = 18 iv_row = 1 iv_val = 'Prüfmethode'           )
+            && _cell( iv_col = 19 iv_row = 1 iv_val = 'Sollwert QL'           )
+            && _cell( iv_col = 20 iv_row = 1 iv_val = 'Toleranz QL'           )
+            && _cell( iv_col = 21 iv_row = 1 iv_val = 'Langtext'              )
+            && _cell( iv_col = 22 iv_row = 1 iv_val = 'Sollwert QN'           )
+            && _cell( iv_col = 23 iv_row = 1 iv_val = 'Toleranz oben'         )
+            && _cell( iv_col = 24 iv_row = 1 iv_val = 'Toleranz unten'        )
+            && _cell( iv_col = 25 iv_row = 1 iv_val = 'Losgröße'              )
+            && _cell( iv_col = 26 iv_row = 1 iv_val = 'QC department'         )
+            && _cell( iv_col = 27 iv_row = 1 iv_val = 'Bewertung / Code 1'    ).
+    " Dynamische Header-Spalten ab 28
+    lv_col_idx = 28.
+    DO lv_max_codes - 1 TIMES.
+      lv_hdr = lv_hdr
+            && _cell( iv_col = lv_col_idx iv_row = 1
+                      iv_val = |Code { lv_col_idx - 26 }| ).
+      lv_col_idx = lv_col_idx + 1.
+    ENDDO.
+    lv_rows = |<row r="1">{ lv_hdr }</row>|.
+
+    " Datenzeilen
+    lv_ridx = 1.
+    LOOP AT lt_data ASSIGNING FIELD-SYMBOL(<d>).
       lv_ridx = lv_ridx + 1.
-      DATA(lv_cells) = _cell( iv_col = 1  iv_row = lv_ridx iv_val = |{ <r>-prueflosnummer }| )
-                    && _cell( iv_col = 2  iv_row = lv_ridx iv_val = |{ <r>-plangruppe }|     )
-                    && _cell( iv_col = 3  iv_row = lv_ridx iv_val = |{ <r>-pgz }|            )
-                    && _cell( iv_col = 4  iv_row = lv_ridx iv_val = |{ <r>-pgz_text }|       )
-                    && _cell( iv_col = 5  iv_row = lv_ridx iv_val = |{ <r>-lieferant_nr }|   )
-                    && _cell( iv_col = 6  iv_row = lv_ridx iv_val = |{ <r>-bestell_nr }|     )
-                    && _cell( iv_col = 7  iv_row = lv_ridx iv_val = |{ <r>-bestell_pos }|    )
-                    && _cell( iv_col = 8  iv_row = lv_ridx iv_val = |{ <r>-material }|       )
-                    && _cell( iv_col = 9  iv_row = lv_ridx iv_val = |{ <r>-mstae_text }|     )
-                    && _cell( iv_col = 10 iv_row = lv_ridx iv_val = |{ <r>-vorgangsnummer }| )
-                    && _cell( iv_col = 11 iv_row = lv_ridx iv_val = |{ <r>-vorgang_text }|   )
-                    && _cell( iv_col = 12 iv_row = lv_ridx iv_val = |{ <r>-fhm }|            )
-                    && _cell( iv_col = 13 iv_row = lv_ridx iv_val = |{ <r>-fhm_text }|       )
-                    && _cell( iv_col = 14 iv_row = lv_ridx iv_val = |{ <r>-stammerkmal }|    )
-                    && _cell( iv_col = 15 iv_row = lv_ridx iv_val = |{ <r>-quanqual }|       )
-                    && _cell( iv_col = 16 iv_row = lv_ridx iv_val = |{ <r>-merkmalsnummer }| )
-                    && _cell( iv_col = 17 iv_row = lv_ridx iv_val = |{ <r>-kurztext }|       )
-                    && _cell( iv_col = 18 iv_row = lv_ridx iv_val = |{ <r>-sollwert_qn }|    )
-                    && _cell( iv_col = 19 iv_row = lv_ridx iv_val = |{ <r>-toleranz_ob }|    )
-                    && _cell( iv_col = 20 iv_row = lv_ridx iv_val = |{ <r>-toleranz_un }|    )
-                    && _cell( iv_col = 21 iv_row = lv_ridx iv_val = |{ <r>-sollwert_ql }|    )
-                    && _cell( iv_col = 22 iv_row = lv_ridx iv_val = |{ <r>-toleranz_ql }|    )
-                    && _cell( iv_col = 23 iv_row = lv_ridx iv_val = |{ <r>-losgroesse }|     )
-                    && _cell( iv_col = 24 iv_row = lv_ridx iv_val = |{ <r>-pruefergebnis }|  ).
+      lv_cells =   _cell( iv_col = 1  iv_row = lv_ridx iv_val = |{ <d>-prueflosnummer }| )
+               && _cell( iv_col = 2  iv_row = lv_ridx iv_val = |{ <d>-plangruppe }|     )
+               && _cell( iv_col = 3  iv_row = lv_ridx iv_val = |{ <d>-pgz }|            )
+               && _cell( iv_col = 4  iv_row = lv_ridx iv_val = |{ <d>-pgz_text }|       )
+               && _cell( iv_col = 5  iv_row = lv_ridx iv_val = |{ <d>-lieferant_nr }|   )
+               && _cell( iv_col = 6  iv_row = lv_ridx iv_val = |{ <d>-bestell_nr }|     )
+               && _cell( iv_col = 7  iv_row = lv_ridx iv_val = |{ <d>-bestell_pos }|    )
+               && _cell( iv_col = 8  iv_row = lv_ridx iv_val = |{ <d>-material }|       )
+               && _cell( iv_col = 9  iv_row = lv_ridx iv_val = |{ <d>-mstae_text }|     )
+               && _cell( iv_col = 10 iv_row = lv_ridx iv_val = |{ <d>-vorgangsnummer }| )
+               && _cell( iv_col = 11 iv_row = lv_ridx iv_val = |{ <d>-vorgang_text }|   )
+               && _cell( iv_col = 12 iv_row = lv_ridx iv_val = |{ <d>-fhm }|            )
+               && _cell( iv_col = 13 iv_row = lv_ridx iv_val = |{ <d>-fhm_text }|       )
+               && _cell( iv_col = 14 iv_row = lv_ridx iv_val = |{ <d>-stammerkmal }|    )
+               && _cell( iv_col = 15 iv_row = lv_ridx iv_val = |{ <d>-quanqual }|       )
+               && _cell( iv_col = 16 iv_row = lv_ridx iv_val = |{ <d>-merkmalsnummer }| )
+               && _cell( iv_col = 17 iv_row = lv_ridx iv_val = |{ <d>-kurztext }|       )
+               && _cell( iv_col = 18 iv_row = lv_ridx iv_val = |{ <d>-pruefmethode }|   )
+               && _cell( iv_col = 19 iv_row = lv_ridx iv_val = |{ <d>-sollwert_ql }|    )
+               && _cell( iv_col = 20 iv_row = lv_ridx iv_val = |{ <d>-toleranz_ql }|    )
+               && _cell( iv_col = 21 iv_row = lv_ridx iv_val = |{ <d>-langtext }|       )
+               && _cell( iv_col = 22 iv_row = lv_ridx iv_val = |{ <d>-sollwert_qn }|    )
+               && _cell( iv_col = 23 iv_row = lv_ridx iv_val = |{ <d>-toleranz_ob }|    )
+               && _cell( iv_col = 24 iv_row = lv_ridx iv_val = |{ <d>-toleranz_un }|    )
+               && _cell( iv_col = 25 iv_row = lv_ridx iv_val = |{ <d>-losgroesse }|     )
+               && _cell( iv_col = 26 iv_row = lv_ridx iv_val = |{ <d>-qc_department }| ).
+
+      IF <d>-is_quantitative = abap_true.
+        lv_cells = lv_cells
+               && _cell( iv_col = 27 iv_row = lv_ridx iv_val = '' ).
+      ELSE.
+        lv_cc = 27.
+        LOOP AT <d>-codes ASSIGNING FIELD-SYMBOL(<cd>).
+          lv_cells = lv_cells
+                 && _cell( iv_col = lv_cc iv_row = lv_ridx
+                            iv_val = condense( <cd>-kurztext ) ).
+          lv_cc = lv_cc + 1.
+        ENDLOOP.
+      ENDIF.
       lv_rows = lv_rows && |<row r="{ lv_ridx }">{ lv_cells }</row>|.
     ENDLOOP.
 
-    DATA(lv_sheet) =
-        `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>` &&
-        `<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">` &&
-        `<cols>` &&
+    " <cols>-Block: fixe Spalten 1-25
+    lv_cols =
         `<col min="1"  max="1"  width="22" customWidth="1"/>` &&
         `<col min="2"  max="2"  width="12" customWidth="1"/>` &&
         `<col min="3"  max="3"  width="6"  customWidth="1"/>` &&
@@ -352,28 +514,42 @@ CLASS zjmqmi_cl_icf_download IMPLEMENTATION.
         `<col min="15" max="15" width="8"  customWidth="1"/>` &&
         `<col min="16" max="16" width="10" customWidth="1"/>` &&
         `<col min="17" max="17" width="36" customWidth="1"/>` &&
-        `<col min="18" max="18" width="18" customWidth="1"/>` &&
-        `<col min="19" max="19" width="18" customWidth="1"/>` &&
-        `<col min="20" max="20" width="18" customWidth="1"/>` &&
-        `<col min="21" max="21" width="14" customWidth="1"/>` &&
-        `<col min="22" max="22" width="12" customWidth="1"/>` &&
-        `<col min="23" max="23" width="12" customWidth="1"/>` &&
-        `<col min="24" max="24" width="22" customWidth="1"/>` &&
-        `</cols>` &&
+        `<col min="18" max="18" width="36" customWidth="1"/>` &&
+        `<col min="19" max="19" width="20" customWidth="1"/>` &&
+        `<col min="20" max="20" width="10" customWidth="1"/>` &&
+        `<col min="21" max="21" width="60" customWidth="1"/>` &&
+        `<col min="22" max="22" width="18" customWidth="1"/>` &&
+        `<col min="23" max="23" width="18" customWidth="1"/>` &&
+        `<col min="24" max="24" width="18" customWidth="1"/>` &&
+        `<col min="25" max="25" width="12" customWidth="1"/>` &&
+        `<col min="26" max="26" width="14" customWidth="1"/>`.
+    " Dynamische Spalten ab 27
+    lv_dyn_col = 27.
+    DO lv_max_codes TIMES.
+      lv_cols = lv_cols &&
+        |<col min="{ lv_dyn_col }" max="{ lv_dyn_col }" width="18" customWidth="1"/>|.
+      lv_dyn_col = lv_dyn_col + 1.
+    ENDDO.
+
+    lv_sheet =
+        `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>` &&
+        `<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">` &&
+        `<cols>` && lv_cols && `</cols>` &&
         `<sheetData>` && lv_rows && `</sheetData>` &&
         `</worksheet>`.
 
-    DATA(lv_wb) =
+    lv_wb =
         `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>` &&
         `<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"` &&
         ` xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">` &&
         `<sheets><sheet name="Daten" sheetId="1" r:id="rId1"/></sheets>` &&
         `</workbook>`.
 
-    DATA(lv_ct) =
+    lv_ct =
         `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>` &&
         `<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">` &&
-        `<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>` &&
+        `<Default Extension="rels"` &&
+        ` ContentType="application/vnd.openxmlformats-package.relationships+xml"/>` &&
         `<Default Extension="xml"  ContentType="application/xml"/>` &&
         `<Override PartName="/xl/workbook.xml"` &&
         ` ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>` &&
@@ -381,7 +557,7 @@ CLASS zjmqmi_cl_icf_download IMPLEMENTATION.
         ` ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>` &&
         `</Types>`.
 
-    DATA(lv_rels) =
+    lv_rels =
         `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>` &&
         `<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">` &&
         `<Relationship Id="rId1"` &&
@@ -389,7 +565,7 @@ CLASS zjmqmi_cl_icf_download IMPLEMENTATION.
         ` Target="xl/workbook.xml"/>` &&
         `</Relationships>`.
 
-    DATA(lv_wb_rels) =
+    lv_wb_rels =
         `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>` &&
         `<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">` &&
         `<Relationship Id="rId1"` &&
@@ -397,21 +573,19 @@ CLASS zjmqmi_cl_icf_download IMPLEMENTATION.
         ` Target="worksheets/sheet1.xml"/>` &&
         `</Relationships>`.
 
-    DATA lo_zip TYPE REF TO cl_abap_zip.
     CREATE OBJECT lo_zip.
     lo_zip->add( name    = '[Content_Types].xml'
-                 content = cl_abap_codepage=>convert_to( source = lv_ct   codepage = 'UTF-8' ) ).
+                 content = cl_abap_codepage=>convert_to( source = lv_ct      codepage = 'UTF-8' ) ).
     lo_zip->add( name    = '_rels/.rels'
-                 content = cl_abap_codepage=>convert_to( source = lv_rels codepage = 'UTF-8' ) ).
+                 content = cl_abap_codepage=>convert_to( source = lv_rels    codepage = 'UTF-8' ) ).
     lo_zip->add( name    = 'xl/workbook.xml'
-                 content = cl_abap_codepage=>convert_to( source = lv_wb   codepage = 'UTF-8' ) ).
+                 content = cl_abap_codepage=>convert_to( source = lv_wb      codepage = 'UTF-8' ) ).
     lo_zip->add( name    = 'xl/_rels/workbook.xml.rels'
                  content = cl_abap_codepage=>convert_to( source = lv_wb_rels codepage = 'UTF-8' ) ).
     lo_zip->add( name    = 'xl/worksheets/sheet1.xml'
-                 content = cl_abap_codepage=>convert_to( source = lv_sheet codepage = 'UTF-8' ) ).
+                 content = cl_abap_codepage=>convert_to( source = lv_sheet   codepage = 'UTF-8' ) ).
 
     DATA(lv_content) = lo_zip->save( ).
-
     server->response->set_header_field(
       name  = 'Content-Disposition'
       value = |attachment; filename="{ lv_name }"| ).
@@ -423,3 +597,4 @@ CLASS zjmqmi_cl_icf_download IMPLEMENTATION.
   ENDMETHOD.
 
 ENDCLASS.
+

@@ -34,12 +34,16 @@ define root view entity ZJMQMI_C_INSPLOT
                           { type: #FOR_ACTION, dataAction: 'vormerken',
                             label: 'Vormerken', position: 185 },
                           { type: #FOR_ACTION, dataAction: 'vormerken_loeschen',
-                            label: 'Aus Vormerkliste löschen', position: 186 }],
+                            label: 'Aus Vormerkliste löschen', position: 186 },
+                          { type: #FOR_ACTION, dataAction: 'zuruecksetzen',
+                            label: 'Zurücksetzen', position: 190 }],
          identification: [{ position: 10 },
                           { type: #FOR_ACTION, dataAction: 'vormerken',
                             label: 'Vormerkliste aufnehmen', position: 15 },
                           { type: #FOR_ACTION, dataAction: 'vormerkliste_leeren',
-                            label: 'Vormerkliste leeren', position: 20 }],
+                            label: 'Vormerkliste leeren', position: 20 },
+                          { type: #FOR_ACTION, dataAction: 'zuruecksetzen',
+                            label: 'Zurücksetzen', position: 25 }],
          selectionField: [{ position: 10 }],
          fieldGroup:     [{ qualifier: 'General', position: 10 }] }
   @Search.defaultSearchElement: true
@@ -70,17 +74,14 @@ define root view entity ZJMQMI_C_INSPLOT
   @Search.defaultSearchElement: true
   Material,
 
-  @UI: { lineItem:       [{ position: 40, label: 'Charge' }],
-         fieldGroup:     [{ qualifier: 'General', position: 40 }] }
+  @UI: { fieldGroup: [{ qualifier: 'General', position: 40 }] }
   @Search.defaultSearchElement: true
   Batch,
 
-  @UI: { lineItem:   [{ position: 50, label: 'Losmenge' }],
-         fieldGroup: [{ qualifier: 'Quantities', position: 10 }] }
+  @UI: { fieldGroup: [{ qualifier: 'Quantities', position: 10 }] }
   InspectionLotQuantity,
 
-  @UI: { lineItem:   [{ position: 55, label: 'ME' }],
-         fieldGroup: [{ qualifier: 'Quantities', position: 20 }] }
+  @UI: { fieldGroup: [{ qualifier: 'Quantities', position: 20 }] }
   InspectionLotQuantityUnit,
 
   @UI: { lineItem:       [{ position: 60, label: 'Erstelldatum' }],
@@ -89,19 +90,26 @@ define root view entity ZJMQMI_C_INSPLOT
   @Consumption.filter.selectionType: #INTERVAL
   InspLotCreatedOnLocalDate,
 
-  @UI: { lineItem:       [{ position: 70, label: 'Pruefart' }],
-         selectionField: [{ position: 70 }],
+  @UI: { selectionField: [{ position: 70 }],
          fieldGroup:     [{ qualifier: 'General', position: 60 }] }
   @OData.property.name: 'InspLotType'
   InspectionLotType,
 
-  @UI.lineItem: [{ position: 72, label: 'Einzel-XLSX', type: #WITH_URL,
+  @UI.lineItem: [{ position: 72, label: 'Download', type: #WITH_URL,
                    url: 'DownloadUrl', iconUrl: 'sap-icon://download' }]
   DownloadUrl,
 
-  @UI.lineItem: [{ position: 74, label: 'Vormerkliste laden', type: #WITH_URL,
+  @UI.lineItem: [{ position: 73, label: 'Upload', type: #WITH_URL,
+                   url: 'UploadUrl', iconUrl: 'sap-icon://upload' }]
+  UploadUrl,
+
+  @UI.lineItem: [{ position: 74, label: 'Vormerkliste Download', type: #WITH_URL,
                    url: 'BatchDownloadUrl', iconUrl: 'sap-icon://download-from-cloud' }]
   BatchDownloadText,
+
+  @UI.lineItem: [{ position: 75, label: 'Vormerkliste Upload', type: #WITH_URL,
+                   url: 'BatchUploadUrl', iconUrl: 'sap-icon://upload-to-cloud' }]
+  BatchUploadText,
 
   @UI: { lineItem:   [{ position: 80, label: 'Kurztext' }],
          fieldGroup: [{ qualifier: 'General', position: 70 }] }
@@ -152,6 +160,9 @@ define root view entity ZJMQMI_C_INSPLOT
 
   @UI.hidden: true
   BatchDownloadUrl,
+
+  @UI.hidden: true
+  BatchUploadUrl,
 
   _ProtEintrag : redirected to composition child ZJMQMI_C_INSPLOT_PROT,
   _Merkmale    : redirected to composition child ZJMQMI_C_INSPLOT_CHAR,

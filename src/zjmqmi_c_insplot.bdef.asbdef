@@ -3,9 +3,11 @@ projection;
 define behavior for ZJMQMI_C_INSPLOT alias InspLot
 {
   use action download;
+  use action uploadResults;
   use action vormerken;
   use action vormerken_loeschen;
   use action vormerkliste_leeren;
+  use action zuruecksetzen;
   use association _ProtEintrag;
   use association _Merkmale;
   use association _DlToken;

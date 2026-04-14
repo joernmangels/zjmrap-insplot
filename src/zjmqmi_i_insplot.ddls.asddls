@@ -48,6 +48,9 @@ define root view entity ZJMQMI_I_INSPLOT
       concat( '/sap/bc/zjmqmi/download?lot=',
               il.InspectionLot )    as DownloadUrl,
 
+      concat( '/sap/bc/zjmqmi/upload?lot=',
+              il.InspectionLot )    as UploadUrl,
+
       case when _Tok.prueflos is not null
            then cast( '/sap/bc/zjmqmi/download' as abap.char(200) )
            else cast( '' as abap.char(200) )
@@ -57,6 +60,16 @@ define root view entity ZJMQMI_I_INSPLOT
            then cast( 'Vormerkliste laden' as abap.char(50) )
            else cast( '' as abap.char(50) )
       end                           as BatchDownloadText,
+
+      case when _Tok.prueflos is not null
+           then cast( '/sap/bc/zjmqmi/upload' as abap.char(200) )
+           else cast( '' as abap.char(200) )
+      end                           as BatchUploadUrl,
+
+      case when _Tok.prueflos is not null
+           then cast( 'Vormerkliste hochladen' as abap.char(50) )
+           else cast( '' as abap.char(50) )
+      end                           as BatchUploadText,
 
       _ProtEintrag,
       _Merkmale,

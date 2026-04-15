@@ -3,10 +3,8 @@
  <asx:abap xmlns:asx="http://www.sap.com/abapxml" version="1.0">
   <asx:values>
    <DDLS>
-    <DDLNAME>ZJMQMI_C_INSPLOT_PROT</DDLNAME>
-    <DDLANGUAGE>D</DDLANGUAGE>
-    <DDTEXT>Consumption View Upload Vormerkliste</DDTEXT>
-    <SOURCE_TYPE>P</SOURCE_TYPE>
+    <DDLNAME>ZJMQMI_I_STATUS_CODE</DDLNAME>
+    <SOURCE_TYPE>W</SOURCE_TYPE>
    </DDLS>
   </asx:values>
  </asx:abap>

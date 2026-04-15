@@ -8,6 +8,20 @@ define root view entity ZJMQMI_I_INSPLOT
   left outer join zjmqmit_dl_token as _Tok
     on  _Tok.prueflos   = il.InspectionLot
     and _Tok.created_by = $session.user
+  left outer join ZJMQMI_I_STATUS_CODE as _Sc
+    on _Sc.prueflos = il.InspectionLot
+  left outer join dd07t as _StatusDD
+    on  _StatusDD.domname    = 'ZJMQMI_D_STATUS'
+    and _StatusDD.domvalue_l = _Sc.StatusCode
+    and _StatusDD.ddlanguage = $session.system_language
+  left outer join dd07t as _BatchDlTxt
+    on  _BatchDlTxt.domname    = 'ZJMQMI_D_BATCH_ACTION'
+    and _BatchDlTxt.domvalue_l = 'D'
+    and _BatchDlTxt.ddlanguage = $session.system_language
+  left outer join dd07t as _BatchUlTxt
+    on  _BatchUlTxt.domname    = 'ZJMQMI_D_BATCH_ACTION'
+    and _BatchUlTxt.domvalue_l = 'U'
+    and _BatchUlTxt.ddlanguage = $session.system_language
   composition [0..*] of ZJMQMI_I_INSPLOT_PROT  as _ProtEintrag
   composition [0..*] of ZJMQMI_I_INSPLOT_CHAR  as _Merkmale
   composition [0..*] of ZJMQMI_I_INSPLOT_TOKEN as _DlToken
@@ -28,11 +42,8 @@ define root view entity ZJMQMI_I_INSPLOT
       il.InspLotIsStockPostingCompleted,
       il.InspectionLotHasQuantity,
 
-      case when _Stat.last_ul_status = 'E'  then 'Hochgeladen (mit Fehlern)'
-           when _Stat.last_ul_status = 'S'  then 'Hochgeladen (fehlerfrei)'
-           when _Stat.last_dl_at is not null then 'Heruntergeladen'
-           else                                   'Kein Status'
-      end                           as StatusText,
+      @EndUserText.label: 'Status'
+      _StatusDD.ddtext              as StatusText,
 
       case when _Stat.last_ul_status = 'E'  then cast( 1 as abap.int2 )
            when _Stat.last_ul_status = 'S'  then cast( 3 as abap.int2 )
@@ -57,7 +68,7 @@ define root view entity ZJMQMI_I_INSPLOT
       end                           as BatchDownloadUrl,
 
       case when _Tok.prueflos is not null
-           then cast( 'Vormerkliste laden' as abap.char(50) )
+           then cast( _BatchDlTxt.ddtext as abap.char(50) )
            else cast( '' as abap.char(50) )
       end                           as BatchDownloadText,
 
@@ -67,7 +78,7 @@ define root view entity ZJMQMI_I_INSPLOT
       end                           as BatchUploadUrl,
 
       case when _Tok.prueflos is not null
-           then cast( 'Vormerkliste hochladen' as abap.char(50) )
+           then cast( _BatchUlTxt.ddtext as abap.char(50) )
            else cast( '' as abap.char(50) )
       end                           as BatchUploadText,
 

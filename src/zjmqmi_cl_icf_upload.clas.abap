@@ -16,7 +16,7 @@ CLASS zjmqmi_cl_icf_upload IMPLEMENTATION.
       DATA lv_title TYPE string.
       DATA lv_lot_js TYPE string.
       IF lv_lot_str IS NOT INITIAL.
-        lv_title  = |Prüflos { condense( lv_lot_str ) }: Upload Ergebnisse|.
+        lv_title  = |Prüflos { condense( lv_lot_str ) } hochladen|.
         lv_lot_js = |'{ condense( lv_lot_str ) }'|.
       ELSE.
         lv_title  = 'Vormerkliste hochladen'.
@@ -29,11 +29,13 @@ CLASS zjmqmi_cl_icf_upload IMPLEMENTATION.
         `h1{font-size:1.4rem;font-weight:300;margin-bottom:1.5rem}` &&
         `label{display:block;font-size:.875rem;color:#6a6d70;margin-bottom:6px}` &&
         `input[type=file]{width:100%;font-size:.9rem;padding:6px 0}` &&
+        `.cb{margin-top:1rem;display:flex;align-items:center;gap:8px;font-size:.9rem;color:#32363a;cursor:pointer}` &&
+        `.cb input{width:16px;height:16px;cursor:pointer;accent-color:#0070f2}` &&
         `.btns{margin-top:1.5rem;display:flex;gap:12px}` &&
         `button.p{background:#0070f2;color:#fff;border:none;padding:10px 24px;border-radius:4px;font-size:.9rem;cursor:pointer}` &&
         `button.p:hover{background:#0057d2}` &&
         `button.s{background:none;border:1px solid #bbb;padding:10px 24px;border-radius:4px;font-size:.9rem;cursor:pointer}` &&
-        `#st{margin-top:1.2rem;font-size:.9rem;padding:10px 14px;border-radius:4px;display:none}` &&
+        `#st{margin-top:1.2rem;font-size:.9rem;padding:10px 14px;border-radius:4px;display:none;white-space:pre-wrap}` &&
         `#st.ok{background:#f1fdf6;color:#107e3e;border:1px solid #abe5c2}` &&
         `#st.er{background:#fff6f6;color:#bb0000;border:1px solid #f5c2c2}` &&
         `#st.wa{background:#fffbf0;color:#6a4f00;border:1px solid #f5e2a0}` &&
@@ -41,20 +43,26 @@ CLASS zjmqmi_cl_icf_upload IMPLEMENTATION.
         `<h1>` && lv_title && `</h1>` &&
         `<label for="fi">Excel-Datei (.xlsx)</label>` &&
         `<input type="file" id="fi" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet">` &&
+        `<div class="cb">` &&
+        `<input type="checkbox" id="ow">` &&
+        `<label for="ow" style="color:#32363a;margin:0;cursor:pointer">Ergebnisse &#252;berschreiben</label>` &&
+        `</div>` &&
         `<div class="btns">` &&
-        `<button class="p" onclick="go()">Start Upload</button>` &&
-        `<button class="s" onclick="history.back()">Zurück</button>` &&
+        `<button class="p" onclick="go()">Hochladen</button>` &&
+        `<button class="s" onclick="history.back()">Zur&#252;ck</button>` &&
         `</div><div id="st"></div>` &&
         `<script>` &&
         `var LOT=` && lv_lot_js && `;` &&
         `function go(){` &&
         `var f=document.getElementById('fi').files[0];` &&
-        `if(!f){show('Bitte eine Datei auswählen.',false);return;}` &&
+        `if(!f){show('Bitte eine Datei ausw\u00e4hlen.',false);return;}` &&
+        `var ow=document.getElementById('ow').checked;` &&
         `show('Wird verarbeitet\u2026',null);` &&
         `var r=new FileReader();` &&
         `r.onload=function(e){` &&
         `var url=window.location.pathname+'?filename='+encodeURIComponent(f.name);` &&
         `if(LOT)url+='&lot='+encodeURIComponent(LOT);` &&
+        `if(ow)url+='&overwrite=1';` &&
         `var x=new XMLHttpRequest();` &&
         `x.open('POST',url,true);` &&
         `x.setRequestHeader('Content-Type','application/octet-stream');` &&
@@ -80,6 +88,10 @@ CLASS zjmqmi_cl_icf_upload IMPLEMENTATION.
       lv_xstring  = server->request->get_data( ).
       lv_filename = server->request->get_form_field( 'filename' ).
       IF lv_filename IS INITIAL. lv_filename = 'upload.xlsx'. ENDIF.
+
+      DATA(lv_overwrite_str) = server->request->get_form_field( 'overwrite' ).
+      DATA lv_overwrite TYPE abap_bool.
+      IF lv_overwrite_str = '1'. lv_overwrite = abap_true. ENDIF.
 
       IF lv_xstring IS INITIAL.
         server->response->set_status( code = 400 reason = 'Bad Request' ).
@@ -111,6 +123,7 @@ CLASS zjmqmi_cl_icf_upload IMPLEMENTATION.
         iv_filename    = lv_filename
         iv_xstring     = lv_xstring
         it_filter_lots = lt_filter
+        iv_overwrite   = lv_overwrite
       ).
 
       " Batch-Upload: Vormerkliste bereinigen

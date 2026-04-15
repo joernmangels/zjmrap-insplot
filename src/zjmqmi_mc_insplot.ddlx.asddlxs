@@ -1,7 +1,7 @@
-@Metadata.layer: #CUSTOMER
+    @Metadata.layer: #CUSTOMER
 @UI.headerInfo: {
-  typeName: 'Prueflos',
-  typeNamePlural: 'Prueflose',
+  typeName: 'Prüflos',
+  typeNamePlural: 'Prüflose',
   title: { type: #STANDARD, value: 'InspectionLot' },
   description: { type: #STANDARD, value: 'InspectionLotText' }
 }
@@ -17,7 +17,7 @@ annotate view ZJMQMI_C_INSPLOT with
      parentId: 'Header', label: 'Download/Upload',   position: 20 },
    { id: 'Merkmale',   type: #LINEITEM_REFERENCE,
      targetElement: '_Merkmale',    targetQualifier: 'Merkmale',
-     label: 'Pruefmerkmale',        position: 20 },
+     label: 'Prüfmerkmale',        position: 20 },
    { id: 'Protokoll',  type: #LINEITEM_REFERENCE,
      targetElement: '_ProtEintrag', targetQualifier: 'Protokoll',
      label: 'Upload-Protokoll',     position: 30 },

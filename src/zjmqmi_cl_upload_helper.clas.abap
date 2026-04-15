@@ -7,6 +7,7 @@ CLASS zjmqmi_cl_upload_helper DEFINITION
       IMPORTING iv_filename    TYPE string
                 iv_xstring     TYPE xstring
                 it_filter_lots TYPE ty_filter_lots OPTIONAL
+                iv_overwrite   TYPE abap_bool      OPTIONAL
       RETURNING VALUE(rv_msg) TYPE string.
 
   PRIVATE SECTION.
@@ -61,6 +62,11 @@ CLASS zjmqmi_cl_upload_helper DEFINITION
                 iv_inspchar    TYPE qamv-merknr
       RETURNING VALUE(rv_next) TYPE numc4.
 
+    METHODS _invalidate_char
+      IMPORTING iv_prueflos TYPE qals-prueflos
+                iv_inspoper TYPE vornr
+                iv_inspchar TYPE qamv-merknr.
+
     METHODS _write_prot
       IMPORTING iv_prueflos  TYPE qals-prueflos
                 iv_filename  TYPE string
@@ -75,9 +81,10 @@ CLASS zjmqmi_cl_upload_helper DEFINITION
                 iv_status   TYPE c.
 
     METHODS _post_results
-      IMPORTING iv_prueflos TYPE qals-prueflos
-                iv_filename TYPE string
-                it_rows     TYPE ty_upload_rows.
+      IMPORTING iv_prueflos  TYPE qals-prueflos
+                iv_filename  TYPE string
+                it_rows      TYPE ty_upload_rows
+                iv_overwrite TYPE abap_bool OPTIONAL.
 ENDCLASS.
 
 CLASS zjmqmi_cl_upload_helper IMPLEMENTATION.
@@ -104,17 +111,23 @@ CLASS zjmqmi_cl_upload_helper IMPLEMENTATION.
       rv_msg = 'Keine passenden Prüflose in der Excel-Datei gefunden'.
       RETURN.
     ENDIF.
+    DATA lv_detail TYPE string.
+    DATA lv_total  TYPE i.
     LOOP AT lt_lots INTO DATA(lv_lot).
       DATA(lt_lot_rows) = VALUE ty_upload_rows(
         FOR r IN lt_rows WHERE ( prueflosnummer = lv_lot ) ( r )
       ).
+      DATA(lv_lot_cnt) = lines( lt_lot_rows ).
+      lv_total += lv_lot_cnt.
       _post_results(
-        iv_prueflos = lv_lot
-        iv_filename = iv_filename
-        it_rows     = lt_lot_rows
+        iv_prueflos  = lv_lot
+        iv_filename  = iv_filename
+        it_rows      = lt_lot_rows
+        iv_overwrite = iv_overwrite
       ).
+      lv_detail &&= |  { lv_lot }: { lv_lot_cnt } Merkmal(e)\n|.
     ENDLOOP.
-    rv_msg = |{ lines( lt_rows ) } Merkmal(e) aus { lines( lt_lots ) } Prüflos(en) verarbeitet|.
+    rv_msg = |{ lines( lt_lots ) } Prüflos(e) verarbeitet, { lv_total } Merkmal(e) gesamt:\n| && lv_detail.
   ENDMETHOD.
 
   METHOD _col_letter_to_idx.
@@ -427,7 +440,7 @@ CLASS zjmqmi_cl_upload_helper IMPLEMENTATION.
       ENDIF.
     CATCH cx_sy_conversion_error cx_sy_arithmetic_error.
       " Kein Vergleich möglich → Annahme behalten
-  ENDTRY.
+    ENDTRY.
   ENDMETHOD.
 
   METHOD _get_next_res_no.
@@ -440,6 +453,28 @@ CLASS zjmqmi_cl_upload_helper IMPLEMENTATION.
       TABLES    single_results = lt_singl.
     DESCRIBE TABLE lt_singl LINES lv_count.
     rv_next = lv_count + 1.
+  ENDMETHOD.
+
+  METHOD _invalidate_char.
+    " Merkmal auf "offen / nicht bewertet" zurücksetzen, damit neue Ergebnisse
+    " gebucht werden können ohne die vorherige Bewertung zu erhalten.
+    " closed = ' '     → Merkmal wieder öffnen
+    " evaluation = ' ' → Bewertung löschen
+    DATA lt_char TYPE TABLE OF bapi2045d2 WITH EMPTY KEY.
+    DATA ls_ret  TYPE bapiret2.
+    APPEND VALUE bapi2045d2(
+      insplot    = iv_prueflos
+      inspoper   = iv_inspoper
+      inspchar   = iv_inspchar
+      closed     = ' '
+      evaluation = ' '
+    ) TO lt_char.
+    CALL FUNCTION 'BAPI_INSPOPER_RECORDRESULTS'
+      EXPORTING insplot      = iv_prueflos
+                inspoper     = iv_inspoper
+      IMPORTING return       = ls_ret
+      TABLES    char_results = lt_char.
+    CALL FUNCTION 'BAPI_TRANSACTION_COMMIT' EXPORTING wait = 'X'.
   ENDMETHOD.
 
   METHOD _post_results.
@@ -455,6 +490,18 @@ CLASS zjmqmi_cl_upload_helper IMPLEMENTATION.
     DATA ls_qmkst     TYPE qmkst.
     FIELD-SYMBOLS <fs_qmkst> TYPE qmkst.
     LOOP AT lt_vorgnr INTO DATA(lv_vornr).
+
+      " ── Overwrite: bestehende Ergebnisse ungültig setzen ─────────────────
+      IF iv_overwrite = abap_true.
+        LOOP AT it_rows INTO DATA(ls_ow) WHERE vorgangsnummer = lv_vornr.
+          _invalidate_char(
+            iv_prueflos = iv_prueflos
+            iv_inspoper = CONV vornr( lv_vornr )
+            iv_inspchar = CONV qamv-merknr( ls_ow-merkmalsnummer )
+          ).
+        ENDLOOP.
+      ENDIF.
+
       DATA lt_char_res  TYPE TABLE OF bapi2045d2 WITH EMPTY KEY.
       DATA lt_smpl_res  TYPE TABLE OF bapi2045d3 WITH EMPTY KEY.
       DATA lt_singl_res TYPE TABLE OF bapi2045d4 WITH EMPTY KEY.
@@ -480,11 +527,17 @@ CLASS zjmqmi_cl_upload_helper IMPLEMENTATION.
             DATA lv_ep_codegrp TYPE qpac-codegruppe.
             DATA lv_ep_code    TYPE qpac-code.
             CLEAR: lv_ep_codegrp, lv_ep_code.
-            DATA(lv_res_no) = _get_next_res_no(
-              iv_prueflos = iv_prueflos
-              iv_inspoper = CONV vornr( lv_vornr )
-              iv_inspchar = CONV qamv-merknr( ls_row-merkmalsnummer )
-            ).
+            " Bei Overwrite: res_no = 1 (überschreiben), sonst nächste freie Nummer
+            DATA lv_res_no TYPE numc4.
+            IF iv_overwrite = abap_true.
+              lv_res_no = 1.
+            ELSE.
+              lv_res_no = _get_next_res_no(
+                iv_prueflos = iv_prueflos
+                iv_inspoper = CONV vornr( lv_vornr )
+                iv_inspchar = CONV qamv-merknr( ls_row-merkmalsnummer )
+              ).
+            ENDIF.
             IF ls_row-quanqual = 'QN'.
               " Quantitativ: Messwert in single_results
               APPEND VALUE bapi2045d4(
@@ -599,7 +652,13 @@ CLASS zjmqmi_cl_upload_helper IMPLEMENTATION.
         ENDLOOP.
         IF lv_prot_stat = 'S'.
           IF ls_rp-quanqual = 'QN'.
-            lv_prot_msg = |Bewertung erfolgreich: { ls_rp-messwert }|.
+            DATA(lv_pm_eval) = _get_evaluation(
+              iv_prueflos = iv_prueflos
+              iv_vornr    = condense( ls_rp-vorgangsnummer )
+              iv_merknr   = condense( ls_rp-merkmalsnummer )
+              iv_messwert = ls_rp-messwert
+            ).
+            lv_prot_msg = |Bewertung erfolgreich: { lv_pm_eval } - { ls_rp-messwert }|.
           ELSE.
             IF ls_rp-code_col_idx > 0.
               DATA(lt_pc) = _get_codes_for_char(
@@ -609,7 +668,7 @@ CLASS zjmqmi_cl_upload_helper IMPLEMENTATION.
               ).
               READ TABLE lt_pc INDEX ( ls_rp-code_col_idx - 26 ) INTO DATA(ls_pc).
               IF sy-subrc = 0.
-                lv_prot_msg = |Bewertung erfolgreich: { condense( ls_pc-kurztext ) }|.
+                lv_prot_msg = |Bewertung erfolgreich: { ls_pc-bewertung } - { condense( ls_pc-kurztext ) }|.
               ELSE.
                 lv_prot_msg = 'Bewertung erfolgreich'.
               ENDIF.

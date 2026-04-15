@@ -1,92 +1,92 @@
 @AccessControl.authorizationCheck: #NOT_REQUIRED
-@EndUserText.label: 'Consumption View Pruefmerkmale'
+@EndUserText.label: 'Consumption View Insp. Characteristics'
 define view entity ZJMQMI_C_INSPLOT_CHAR
   as projection on ZJMQMI_I_INSPLOT_CHAR
 {
   @UI.facet: [
     { id: 'Spezifikation', type: #FIELDGROUP_REFERENCE, targetQualifier: 'Spezifikation',
-      label: 'Spezifikation', position: 10 },
+      label: 'Specification', position: 10 },
     { id: 'Ergebnis',      type: #FIELDGROUP_REFERENCE, targetQualifier: 'Ergebnis',
-      label: 'Pruefergebnis', position: 20 }
+      label: 'Inspection Result', position: 20 }
   ]
   key InspectionLot,
 
   @UI.hidden: true
   key InspPlanOperationInternalID,
 
-  @UI.lineItem:  [{ qualifier: 'Merkmale', position: 20, label: 'Merkmal' }]
-  @UI.fieldGroup:[{ qualifier: 'Spezifikation', position: 20, label: 'Merkmal' }]
+  @UI.lineItem:  [{ qualifier: 'Merkmale', position: 20, label: 'Characteristic' }]
+  @UI.fieldGroup:[{ qualifier: 'Spezifikation', position: 20, label: 'Characteristic' }]
   key InspectionCharacteristic,
 
-  @UI.lineItem:  [{ qualifier: 'Merkmale', position: 10, label: 'Vorgang' }]
-  @UI.fieldGroup:[{ qualifier: 'Spezifikation', position: 10, label: 'Vorgang' }]
+  @UI.lineItem:  [{ qualifier: 'Merkmale', position: 10, label: 'Operation' }]
+  @UI.fieldGroup:[{ qualifier: 'Spezifikation', position: 10, label: 'Operation' }]
   InspectionOperation,
 
-  @UI.lineItem:  [{ qualifier: 'Merkmale', position: 15, label: 'Vorgangs-Beschreibung' }]
-  @UI.fieldGroup:[{ qualifier: 'Spezifikation', position: 15, label: 'Vorgangs-Beschreibung' }]
+  @UI.lineItem:  [{ qualifier: 'Merkmale', position: 15, label: 'Operation Description' }]
+  @UI.fieldGroup:[{ qualifier: 'Spezifikation', position: 15, label: 'Operation Description' }]
   OperationText,
 
-  @UI.lineItem:  [{ qualifier: 'Merkmale', position: 25, label: 'Stammmerkmal' }]
-  @UI.fieldGroup:[{ qualifier: 'Spezifikation', position: 25, label: 'Stammmerkmal' }]
+  @UI.lineItem:  [{ qualifier: 'Merkmale', position: 25, label: 'Master Characteristic' }]
+  @UI.fieldGroup:[{ qualifier: 'Spezifikation', position: 25, label: 'Master Characteristic' }]
   InspectionSpecification,
 
   @UI.lineItem:  [{ qualifier: 'Merkmale', position: 28, label: 'QN/QL' }]
   @UI.fieldGroup:[{ qualifier: 'Spezifikation', position: 28, label: 'QN/QL' }]
   QuanQual,
 
-  @UI.lineItem:  [{ qualifier: 'Merkmale', position: 30, label: 'Kurztext' }]
-  @UI.fieldGroup:[{ qualifier: 'Spezifikation', position: 30, label: 'Kurztext' }]
+  @UI.lineItem:  [{ qualifier: 'Merkmale', position: 30, label: 'Short Text' }]
+  @UI.fieldGroup:[{ qualifier: 'Spezifikation', position: 30, label: 'Short Text' }]
   InspectionCharacteristicText,
 
-  @UI.lineItem:  [{ qualifier: 'Merkmale', position: 35, label: 'FHM' }]
-  @UI.fieldGroup:[{ qualifier: 'Spezifikation', position: 35, label: 'FHM' }]
+  @UI.lineItem:  [{ qualifier: 'Merkmale', position: 35, label: 'Sampling Proc.' }]
+  @UI.fieldGroup:[{ qualifier: 'Spezifikation', position: 35, label: 'Sampling Proc.' }]
   InspectionMethod,
 
-  @UI.lineItem:  [{ qualifier: 'Merkmale', position: 37, label: 'FHM-Beschreibung' }]
-  @UI.fieldGroup:[{ qualifier: 'Spezifikation', position: 37, label: 'FHM-Beschreibung' }]
+  @UI.lineItem:  [{ qualifier: 'Merkmale', position: 37, label: 'Sampling Proc. Descr.' }]
+  @UI.fieldGroup:[{ qualifier: 'Spezifikation', position: 37, label: 'Sampling Proc. Descr.' }]
   InspectionMethodText,
 
-  @UI.lineItem:  [{ qualifier: 'Merkmale', position: 40, label: 'Sollwert QN' }]
-  @UI.fieldGroup:[{ qualifier: 'Spezifikation', position: 40, label: 'Sollwert QN' }]
+  @UI.lineItem:  [{ qualifier: 'Merkmale', position: 40, label: 'Target Value QN' }]
+  @UI.fieldGroup:[{ qualifier: 'Spezifikation', position: 40, label: 'Target Value QN' }]
   InspSpecTargetValue,
 
-  @UI.lineItem:  [{ qualifier: 'Merkmale', position: 50, label: 'Obergrenze QN' }]
-  @UI.fieldGroup:[{ qualifier: 'Spezifikation', position: 50, label: 'Obergrenze QN' }]
+  @UI.lineItem:  [{ qualifier: 'Merkmale', position: 50, label: 'Upper Limit QN' }]
+  @UI.fieldGroup:[{ qualifier: 'Spezifikation', position: 50, label: 'Upper Limit QN' }]
   InspSpecUpperLimit,
 
-  @UI.lineItem:  [{ qualifier: 'Merkmale', position: 60, label: 'Untergrenze QN' }]
-  @UI.fieldGroup:[{ qualifier: 'Spezifikation', position: 60, label: 'Untergrenze QN' }]
+  @UI.lineItem:  [{ qualifier: 'Merkmale', position: 60, label: 'Lower Limit QN' }]
+  @UI.fieldGroup:[{ qualifier: 'Spezifikation', position: 60, label: 'Lower Limit QN' }]
   InspSpecLowerLimit,
 
-  @UI.lineItem:  [{ qualifier: 'Merkmale', position: 63, label: 'Sollwert QL' }]
-  @UI.fieldGroup:[{ qualifier: 'Spezifikation', position: 63, label: 'Sollwert QL' }]
+  @UI.lineItem:  [{ qualifier: 'Merkmale', position: 63, label: 'Target Value QL' }]
+  @UI.fieldGroup:[{ qualifier: 'Spezifikation', position: 63, label: 'Target Value QL' }]
   SelectedCodeSet,
 
-  @UI.lineItem:  [{ qualifier: 'Merkmale', position: 66, label: 'Katalog QL' }]
-  @UI.fieldGroup:[{ qualifier: 'Spezifikation', position: 66, label: 'Katalog QL' }]
+  @UI.lineItem:  [{ qualifier: 'Merkmale', position: 66, label: 'Catalog QL' }]
+  @UI.fieldGroup:[{ qualifier: 'Spezifikation', position: 66, label: 'Catalog QL' }]
   CharacteristicAttributeCatalog,
 
-  @UI.lineItem:  [{ qualifier: 'Merkmale', position: 68, label: 'Losgröße' }]
-  @UI.fieldGroup:[{ qualifier: 'Spezifikation', position: 68, label: 'Losgröße' }]
+  @UI.lineItem:  [{ qualifier: 'Merkmale', position: 68, label: 'Lot Size' }]
+  @UI.fieldGroup:[{ qualifier: 'Spezifikation', position: 68, label: 'Lot Size' }]
   InspCharacteristicSampleSize,
 
-  @UI.fieldGroup:[{ qualifier: 'Spezifikation', position: 70, label: 'Einheit' }]
+  @UI.fieldGroup:[{ qualifier: 'Spezifikation', position: 70, label: 'Unit' }]
   InspectionSpecificationUnit,
 
-  @UI.lineItem:  [{ qualifier: 'Merkmale', position: 80, label: 'Messwert' }]
-  @UI.fieldGroup:[{ qualifier: 'Ergebnis', position: 10, label: 'Messwert' }]
+  @UI.lineItem:  [{ qualifier: 'Merkmale', position: 80, label: 'Result Value' }]
+  @UI.fieldGroup:[{ qualifier: 'Ergebnis', position: 10, label: 'Result Value' }]
   InspectionResultMeanValue,
 
-  @UI.lineItem:  [{ qualifier: 'Merkmale', position: 90, label: 'Bewertung',
+  @UI.lineItem:  [{ qualifier: 'Merkmale', position: 90, label: 'Valuation',
                     criticality: 'InspectionResultStatus',
                     criticalityRepresentation: #WITH_ICON }]
-  @UI.fieldGroup:[{ qualifier: 'Ergebnis', position: 20, label: 'Bewertung',
+  @UI.fieldGroup:[{ qualifier: 'Ergebnis', position: 20, label: 'Valuation',
                     criticality: 'InspectionResultStatus',
                     criticalityRepresentation: #WITH_ICON }]
   InspectionValuationResult,
 
-  @UI.lineItem:  [{ qualifier: 'Merkmale', position: 100, label: 'Merkmalstatus' }]
-  @UI.fieldGroup:[{ qualifier: 'Ergebnis', position: 30, label: 'Merkmalstatus' }]
+  @UI.lineItem:  [{ qualifier: 'Merkmale', position: 100, label: 'Char. Status' }]
+  @UI.fieldGroup:[{ qualifier: 'Ergebnis', position: 30, label: 'Char. Status' }]
   InspectionCharacteristicStatus,
 
   @UI.hidden: true

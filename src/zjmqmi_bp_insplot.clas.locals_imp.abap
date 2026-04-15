@@ -1084,7 +1084,13 @@ CLASS lcl_handler IMPLEMENTATION.
         ENDLOOP.
         IF lv_prot_stat = 'S'.
           IF ls_rp-quanqual = 'QN'.
-            lv_prot_msg = |Bewertung erfolgreich: { ls_rp-messwert }|.
+            DATA(lv_pm_eval) = _get_evaluation(
+              iv_prueflos = iv_prueflos
+              iv_vornr    = condense( ls_rp-vorgangsnummer )
+              iv_merknr   = condense( ls_rp-merkmalsnummer )
+              iv_messwert = ls_rp-messwert
+            ).
+            lv_prot_msg = |Bewertung erfolgreich: { lv_pm_eval } - { ls_rp-messwert }|.
           ELSE.
             IF ls_rp-code_col_idx > 0.
               DATA(lt_pc) = _get_codes_for_char(
@@ -1094,7 +1100,7 @@ CLASS lcl_handler IMPLEMENTATION.
               ).
               READ TABLE lt_pc INDEX ( ls_rp-code_col_idx - 26 ) INTO DATA(ls_pc).
               IF sy-subrc = 0.
-                lv_prot_msg = |Bewertung erfolgreich: { condense( ls_pc-kurztext ) }|.
+                lv_prot_msg = |Bewertung erfolgreich: { ls_pc-bewertung } - { condense( ls_pc-kurztext ) }|.
               ELSE.
                 lv_prot_msg = 'Bewertung erfolgreich'.
               ENDIF.

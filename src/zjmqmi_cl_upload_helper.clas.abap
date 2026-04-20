@@ -19,6 +19,8 @@ CLASS zjmqmi_cl_upload_helper DEFINITION
              messwert       TYPE string,
              code_col_idx   TYPE i,
              excel_row      TYPE i,
+             radii_1        TYPE string,
+             radii_2        TYPE string,
            END OF ty_upload_row.
     TYPES ty_upload_rows TYPE STANDARD TABLE OF ty_upload_row WITH EMPTY KEY.
     TYPES: BEGIN OF ty_up_code,
@@ -77,6 +79,13 @@ CLASS zjmqmi_cl_upload_helper DEFINITION
                 iv_inspoper    TYPE vornr
                 iv_inspchar    TYPE qamv-merknr
       RETURNING VALUE(rv_next) TYPE numc4.
+
+    METHODS _get_radii_code
+      IMPORTING iv_prueflos    TYPE qals-prueflos
+                iv_vornr       TYPE string
+                iv_merknr      TYPE string
+                iv_kurztext    TYPE string
+      RETURNING VALUE(rs_code) TYPE ty_up_code.
 
     METHODS _invalidate_char
       IMPORTING iv_prueflos TYPE qals-prueflos
@@ -237,7 +246,24 @@ CLASS zjmqmi_cl_upload_helper IMPLEMENTATION.
     DATA ls_qmkst    TYPE qmkst.
     FIELD-SYMBOLS <fs_qmkst> TYPE qmkst.
 
+    DATA lv_radii_kurztext TYPE string.
+    DATA ls_radii_code     TYPE ty_up_code.
     LOOP AT it_rows INTO DATA(ls_row) WHERE vorgangsnummer = iv_vornr.
+      CLEAR: lv_radii_kurztext, ls_radii_code.
+      IF ls_row-radii_1 IS NOT INITIAL AND ls_row-radii_2 IS INITIAL.
+        lv_radii_kurztext = ls_row-radii_1.
+      ELSEIF ls_row-radii_2 IS NOT INITIAL AND ls_row-radii_1 IS INITIAL.
+        lv_radii_kurztext = ls_row-radii_2.
+      ENDIF.
+      IF lv_radii_kurztext IS NOT INITIAL.
+        ls_radii_code = _get_radii_code(
+          iv_prueflos = iv_prueflos
+          iv_vornr    = condense( ls_row-vorgangsnummer )
+          iv_merknr   = condense( ls_row-merkmalsnummer )
+          iv_kurztext = lv_radii_kurztext
+        ).
+      ENDIF.
+
       lv_steuerkz = _get_qamv_steuerkz(
         iv_prueflos = iv_prueflos
         iv_vornr    = condense( ls_row-vorgangsnummer )
@@ -275,6 +301,8 @@ CLASS zjmqmi_cl_upload_helper IMPLEMENTATION.
               res_no     = lv_res_no
               res_value  = ls_row-messwert
               res_valuat = lv_eval
+              code_grp2  = ls_radii_code-codegruppe
+              code2      = ls_radii_code-code
               inspector  = sy-uname
               insp_date  = sy-datum
               insp_time  = sy-uzeit
@@ -287,7 +315,7 @@ CLASS zjmqmi_cl_upload_helper IMPLEMENTATION.
                 iv_vornr    = condense( ls_row-vorgangsnummer )
                 iv_merknr   = condense( ls_row-merkmalsnummer )
               ).
-              READ TABLE lt_ep_codes INDEX ( ls_row-code_col_idx - 26 )
+              READ TABLE lt_ep_codes INDEX ( ls_row-code_col_idx - 28 )
                 INTO DATA(ls_ep_code).
               IF sy-subrc = 0.
                 IF ls_ep_code-bewertung IS NOT INITIAL.
@@ -302,6 +330,8 @@ CLASS zjmqmi_cl_upload_helper IMPLEMENTATION.
                   res_no     = lv_res_no
                   code_grp1  = lv_ep_codegrp
                   code1      = lv_ep_code
+                  code_grp2  = ls_radii_code-codegruppe
+                  code2      = ls_radii_code-code
                   res_valuat = lv_eval
                   inspector  = sy-uname
                   insp_date  = sy-datum
@@ -317,6 +347,8 @@ CLASS zjmqmi_cl_upload_helper IMPLEMENTATION.
             inspchar         = ls_row-merkmalsnummer
             code_grp1        = lv_ep_codegrp
             code1            = lv_ep_code
+            code_grp2        = ls_radii_code-codegruppe
+            code2            = ls_radii_code-code
             closed           = `X`
             evaluation       = lv_eval
             condition_active = `X`
@@ -339,13 +371,15 @@ CLASS zjmqmi_cl_upload_helper IMPLEMENTATION.
               iv_vornr    = condense( ls_row-vorgangsnummer )
               iv_merknr   = condense( ls_row-merkmalsnummer )
             ).
-            READ TABLE lt_codes INDEX ( ls_row-code_col_idx - 26 )
+            READ TABLE lt_codes INDEX ( ls_row-code_col_idx - 28 )
               INTO DATA(ls_code).
             IF sy-subrc = 0.
               INSERT VALUE bapi2045d2(
                 inspchar  = ls_row-merkmalsnummer
                 code_grp1 = ls_code-codegruppe
                 code1     = ls_code-code
+                code_grp2 = ls_radii_code-codegruppe
+                code2     = ls_radii_code-code
                 closed    = `X`
                 remark    = iv_filename
               ) INTO TABLE rs_input-char_results.
@@ -406,7 +440,7 @@ CLASS zjmqmi_cl_upload_helper IMPLEMENTATION.
         iv_vornr    = condense( is_row-vorgangsnummer )
         iv_merknr   = condense( is_row-merkmalsnummer )
       ).
-      READ TABLE lt_codes INDEX ( is_row-code_col_idx - 26 ) INTO DATA(ls_code).
+      READ TABLE lt_codes INDEX ( is_row-code_col_idx - 28 ) INTO DATA(ls_code).
       IF sy-subrc = 0.
         rv_msg = |{ condense( TEXT-006 ) } { ls_code-bewertung } - { condense( ls_code-kurztext ) }|.
         RETURN.
@@ -574,8 +608,16 @@ CLASS zjmqmi_cl_upload_helper IMPLEMENTATION.
           WHEN 10. ls_row-vorgangsnummer = condense( lv_cell_val ).
           WHEN 15. ls_row-quanqual       = condense( lv_cell_val ).
           WHEN 16. ls_row-merkmalsnummer = condense( lv_cell_val ).
+          WHEN 27.
+            IF condense( lv_cell_val ) <> ``.
+              ls_row-radii_1 = condense( lv_cell_val ).
+            ENDIF.
+          WHEN 28.
+            IF condense( lv_cell_val ) <> ``.
+              ls_row-radii_2 = condense( lv_cell_val ).
+            ENDIF.
           WHEN OTHERS.
-            IF lv_col_idx >= 27 AND condense( lv_cell_val ) <> ``.
+            IF lv_col_idx >= 29 AND condense( lv_cell_val ) <> ``.
               IF ls_row-quanqual = `QN`.
                 ls_row-messwert = condense( lv_cell_val ).
               ELSE.
@@ -728,6 +770,37 @@ CLASS zjmqmi_cl_upload_helper IMPLEMENTATION.
                 inspchar       = iv_inspchar
       TABLES    single_results = lt_singl.
     rv_next = lines( lt_singl ) + 1.
+  ENDMETHOD.
+
+
+  METHOD _get_radii_code.
+    DATA lv_vorglfnr TYPE qamv-vorglfnr.
+    SELECT SINGLE InspPlanOperationInternalID
+      FROM zjmqmi_i_insplot_char
+      WHERE InspectionLot            = @iv_prueflos
+        AND InspectionOperation      = @iv_vornr
+        AND InspectionCharacteristic = @iv_merknr
+      INTO @lv_vorglfnr.
+    CHECK sy-subrc = 0.
+    SELECT SINGLE katalgart2, auswmenge2
+      FROM qamv
+      WHERE prueflos = @iv_prueflos
+        AND vorglfnr = @lv_vorglfnr
+        AND merknr   = @iv_merknr
+      INTO @DATA(ls_qamv).
+    CHECK sy-subrc = 0
+      AND ls_qamv-katalgart2 = `E`
+      AND ls_qamv-auswmenge2 IS NOT INITIAL.
+    SELECT SINGLE code, codegruppe
+      FROM qpct
+      WHERE katalogart = @ls_qamv-katalgart2
+        AND codegruppe = @ls_qamv-auswmenge2
+        AND sprache    = @sy-langu
+        AND kurztext   = @iv_kurztext
+      INTO @DATA(ls_pct).
+    CHECK sy-subrc = 0.
+    rs_code-code       = ls_pct-code.
+    rs_code-codegruppe = ls_pct-codegruppe.
   ENDMETHOD.
 
 

@@ -180,6 +180,18 @@
      <ENTRY>Keine Prueflose vorgemerkt</ENTRY>
      <LENGTH>62</LENGTH>
     </item>
+    <item>
+     <ID>I</ID>
+     <KEY>029</KEY>
+     <ENTRY>Radien 1</ENTRY>
+     <LENGTH>15</LENGTH>
+    </item>
+    <item>
+     <ID>I</ID>
+     <KEY>030</KEY>
+     <ENTRY>Radien 2</ENTRY>
+     <LENGTH>17</LENGTH>
+    </item>
    </TPOOL>
    <I18N_TPOOL>
     <item>
@@ -352,6 +364,18 @@
        <KEY>028</KEY>
        <ENTRY>No inspection lots in watchlist</ENTRY>
        <LENGTH>62</LENGTH>
+      </item>
+      <item>
+       <ID>I</ID>
+       <KEY>029</KEY>
+       <ENTRY>Radii 1</ENTRY>
+       <LENGTH>15</LENGTH>
+      </item>
+      <item>
+       <ID>I</ID>
+       <KEY>030</KEY>
+       <ENTRY>Radii 2</ENTRY>
+       <LENGTH>17</LENGTH>
       </item>
      </TEXTPOOL>
     </item>

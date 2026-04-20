@@ -9,7 +9,8 @@ CLASS zjmqmi_cl_icf_download DEFINITION
              code     TYPE qpct-code,
              kurztext TYPE qpct-kurztext,
            END OF ty_code.
-    TYPES ty_codes TYPE STANDARD TABLE OF ty_code WITH EMPTY KEY.
+    TYPES ty_codes       TYPE STANDARD TABLE OF ty_code WITH EMPTY KEY.
+    TYPES ty_radii_codes TYPE STANDARD TABLE OF string WITH EMPTY KEY.
 
     TYPES: BEGIN OF ty_row,
              prueflosnummer  TYPE c LENGTH 18,
@@ -40,6 +41,8 @@ CLASS zjmqmi_cl_icf_download DEFINITION
              qc_department   TYPE c LENGTH 1,
              is_quantitative TYPE abap_bool,
              codes           TYPE ty_codes,
+             radii_codes_1   TYPE string,
+             radii_codes_2   TYPE string,
            END OF ty_row.
     TYPES ty_data TYPE TABLE OF ty_row WITH EMPTY KEY.
 
@@ -92,6 +95,12 @@ CLASS zjmqmi_cl_icf_download DEFINITION
                 iv_vorglfnr     TYPE qamv-vorglfnr
                 iv_merknr       TYPE qamv-merknr
       RETURNING VALUE(rt_codes) TYPE ty_codes.
+
+    METHODS _get_radii_codes
+      IMPORTING iv_prueflos      TYPE qals-prueflos
+                iv_vorglfnr      TYPE qamv-vorglfnr
+                iv_merknr        TYPE qamv-merknr
+      RETURNING VALUE(rt_codes)  TYPE ty_radii_codes.
 
     METHODS _get_longtext
       IMPORTING iv_prueflos    TYPE qals-prueflos
@@ -223,6 +232,31 @@ CLASS zjmqmi_cl_icf_download IMPLEMENTATION.
   ENDMETHOD.
 
 
+  METHOD _get_radii_codes.
+    SELECT SINGLE katalgart2, auswmenge2
+      FROM qamv
+      WHERE prueflos = @iv_prueflos
+        AND vorglfnr = @iv_vorglfnr
+        AND merknr   = @iv_merknr
+      INTO @DATA(ls_q).
+    CHECK sy-subrc = 0
+      AND ls_q-katalgart2 = 'E'
+      AND ls_q-auswmenge2 = 'QM'.
+
+    SELECT code, kurztext
+      FROM qpct
+      WHERE katalogart = @ls_q-katalgart2
+        AND codegruppe = @ls_q-auswmenge2
+        AND sprache    = @sy-langu
+      ORDER BY code ASCENDING
+      INTO TABLE @DATA(lt_texts).
+
+    LOOP AT lt_texts INTO DATA(ls_t).
+      APPEND condense( ls_t-kurztext ) TO rt_codes.
+    ENDLOOP.
+  ENDMETHOD.
+
+
   METHOD _get_longtext.
     DATA: BEGIN OF ls_key,
             mandt   TYPE sy-mandt,
@@ -337,6 +371,22 @@ CLASS zjmqmi_cl_icf_download IMPLEMENTATION.
       IF ls_row-stammerkmal(2) = `RQ`.
         ls_row-qc_department = `X`.
       ENDIF.
+      DATA(lt_radii) = _get_radii_codes(
+        iv_prueflos = <c>-inspectionlot
+        iv_vorglfnr = <c>-insplanoperationinternalid
+        iv_merknr   = <c>-inspectioncharacteristic ).
+      DATA lv_radii_cnt TYPE i.
+      lv_radii_cnt = 0.
+      LOOP AT lt_radii INTO DATA(lv_rc).
+        lv_radii_cnt += 1.
+        IF lv_radii_cnt <= 25.
+          IF ls_row-radii_codes_1 IS NOT INITIAL. ls_row-radii_codes_1 &&= `,`. ENDIF.
+          ls_row-radii_codes_1 &&= lv_rc.
+        ELSE.
+          IF ls_row-radii_codes_2 IS NOT INITIAL. ls_row-radii_codes_2 &&= `,`. ENDIF.
+          ls_row-radii_codes_2 &&= lv_rc.
+        ENDIF.
+      ENDLOOP.
       IF <c>-inspspecisquantitative = `X`.
         ls_row-is_quantitative = abap_true.
         ls_row-sollwert_qn     = |{ <c>-inspspectargetvalue }|.
@@ -415,10 +465,12 @@ CLASS zjmqmi_cl_icf_download IMPLEMENTATION.
      && _cell( iv_col = 24 iv_row = 1 iv_val = |{ TEXT-024 }| )
      && _cell( iv_col = 25 iv_row = 1 iv_val = |{ TEXT-025 }| )
      && _cell( iv_col = 26 iv_row = 1 iv_val = |{ TEXT-026 }| )
-     && _cell( iv_col = 27 iv_row = 1 iv_val = |{ TEXT-027 }| ).
-    DATA(lv_col_idx) = 28.
+     && _cell( iv_col = 27 iv_row = 1 iv_val = |{ TEXT-029 }| )
+     && _cell( iv_col = 28 iv_row = 1 iv_val = |{ TEXT-030 }| )
+     && _cell( iv_col = 29 iv_row = 1 iv_val = |{ TEXT-027 }| ).
+    DATA(lv_col_idx) = 30.
     DO lv_max_codes - 1 TIMES.
-      lv_hdr &&= _cell( iv_col = lv_col_idx iv_row = 1 iv_val = |Code { lv_col_idx - 26 }| ).
+      lv_hdr &&= _cell( iv_col = lv_col_idx iv_row = 1 iv_val = |Code { lv_col_idx - 28 }| ).
       lv_col_idx += 1.
     ENDDO.
     DATA(lv_rows) = |<row r="1">{ lv_hdr }</row>|.
@@ -455,11 +507,13 @@ CLASS zjmqmi_cl_icf_download IMPLEMENTATION.
         && _cell( iv_col = 23 iv_row = lv_ridx iv_val = |{ <d>-toleranz_ob }|    )
         && _cell( iv_col = 24 iv_row = lv_ridx iv_val = |{ <d>-toleranz_un }|    )
         && _cell( iv_col = 25 iv_row = lv_ridx iv_val = |{ <d>-losgroesse }|     )
-        && _cell( iv_col = 26 iv_row = lv_ridx iv_val = |{ <d>-qc_department }|  ).
+        && _cell( iv_col = 26 iv_row = lv_ridx iv_val = |{ <d>-qc_department }|  )
+        && _cell( iv_col = 27 iv_row = lv_ridx iv_val = `` )
+        && _cell( iv_col = 28 iv_row = lv_ridx iv_val = `` ).
       IF <d>-is_quantitative = abap_true.
-        lv_cells &&= _cell( iv_col = 27 iv_row = lv_ridx iv_val = `` ).
+        lv_cells &&= _cell( iv_col = 29 iv_row = lv_ridx iv_val = `` ).
       ELSE.
-        lv_cc = 27.
+        lv_cc = 29.
         LOOP AT <d>-codes ASSIGNING FIELD-SYMBOL(<cd>).
           lv_cells &&= _cell( iv_col = lv_cc iv_row = lv_ridx iv_val = condense( <cd>-kurztext ) ).
           lv_cc += 1.
@@ -495,18 +549,46 @@ CLASS zjmqmi_cl_icf_download IMPLEMENTATION.
         `<col min="23" max="23" width="18" customWidth="1"/>` &&
         `<col min="24" max="24" width="18" customWidth="1"/>` &&
         `<col min="25" max="25" width="12" customWidth="1"/>` &&
-        `<col min="26" max="26" width="14" customWidth="1"/>`.
-    DATA(lv_dyn_col) = 27.
+        `<col min="26" max="26" width="14" customWidth="1"/>` &&
+        `<col min="27" max="27" width="18" customWidth="1"/>` &&
+        `<col min="28" max="28" width="18" customWidth="1"/>`.
+    DATA(lv_dyn_col) = 29.
     DO lv_max_codes TIMES.
       lv_cols &&= |<col min="{ lv_dyn_col }" max="{ lv_dyn_col }" width="18" customWidth="1"/>|.
       lv_dyn_col += 1.
     ENDDO.
+
+    DATA lv_dv_entries TYPE string.
+    DATA lv_dv_count   TYPE i.
+    DATA lv_dv_ridx    TYPE i VALUE 1.
+    LOOP AT it_data ASSIGNING FIELD-SYMBOL(<dv>).
+      lv_dv_ridx += 1.
+      IF <dv>-radii_codes_1 IS NOT INITIAL.
+        lv_dv_entries &&=
+          |<dataValidation type="list" allowBlank="1" showDropDown="0" sqref="AA{ lv_dv_ridx }">| &&
+          |<formula1>&quot;{ _esc( <dv>-radii_codes_1 ) }&quot;</formula1>| &&
+          `</dataValidation>`.
+        lv_dv_count += 1.
+      ENDIF.
+      IF <dv>-radii_codes_2 IS NOT INITIAL.
+        lv_dv_entries &&=
+          |<dataValidation type="list" allowBlank="1" showDropDown="0" sqref="AB{ lv_dv_ridx }">| &&
+          |<formula1>&quot;{ _esc( <dv>-radii_codes_2 ) }&quot;</formula1>| &&
+          `</dataValidation>`.
+        lv_dv_count += 1.
+      ENDIF.
+    ENDLOOP.
+    DATA lv_dv TYPE string.
+    IF lv_dv_count > 0.
+      lv_dv = |<dataValidations count="{ lv_dv_count }">{ lv_dv_entries }</dataValidations>|.
+    ENDIF.
 
     DATA(lv_sheet) =
         `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>` &&
         `<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">` &&
         `<cols>` && lv_cols && `</cols>` &&
         `<sheetData>` && lv_rows && `</sheetData>` &&
+        lv_dv &&
         `</worksheet>`.
 
     DATA(lv_wb) =

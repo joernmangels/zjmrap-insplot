@@ -6,6 +6,8 @@ TYPES: BEGIN OF ty_upload_row,
          messwert       TYPE string,
          code_col_idx   TYPE i,
          excel_row      TYPE i,
+         radii_1        TYPE string,
+         radii_2        TYPE string,
        END OF ty_upload_row.
 TYPES ty_upload_rows TYPE STANDARD TABLE OF ty_upload_row WITH EMPTY KEY.
 
@@ -134,6 +136,12 @@ CLASS lcl_handler DEFINITION INHERITING FROM cl_abap_behavior_handler.
     METHODS _update_status
       IMPORTING iv_prueflos TYPE qals-prueflos
                 iv_status   TYPE ty_prot_status.
+    METHODS _get_radii_code
+      IMPORTING iv_prueflos    TYPE qals-prueflos
+                iv_vornr       TYPE string
+                iv_merknr      TYPE string
+                iv_kurztext    TYPE string
+      RETURNING VALUE(rs_code) TYPE ty_up_code.
     METHODS _post_results
       IMPORTING iv_prueflos TYPE qals-prueflos
                 iv_filename TYPE string
@@ -462,8 +470,16 @@ CLASS lcl_handler IMPLEMENTATION.
           WHEN 10. ls_row-vorgangsnummer = condense( lv_cell_val ).
           WHEN 15. ls_row-quanqual       = condense( lv_cell_val ).
           WHEN 16. ls_row-merkmalsnummer = condense( lv_cell_val ).
+          WHEN 27.
+            IF condense( lv_cell_val ) <> ``.
+              ls_row-radii_1 = condense( lv_cell_val ).
+            ENDIF.
+          WHEN 28.
+            IF condense( lv_cell_val ) <> ``.
+              ls_row-radii_2 = condense( lv_cell_val ).
+            ENDIF.
           WHEN OTHERS.
-            IF lv_col_idx >= 27 AND condense( lv_cell_val ) <> ``.
+            IF lv_col_idx >= 29 AND condense( lv_cell_val ) <> ``.
               IF ls_row-quanqual = 'QN'.
                 ls_row-messwert = condense( lv_cell_val ).
               ELSEIF ls_row-code_col_idx = 0.
@@ -605,6 +621,36 @@ CLASS lcl_handler IMPLEMENTATION.
     rv_next = lines( lt_singl ) + 1.
   ENDMETHOD.
 
+  METHOD _get_radii_code.
+    SELECT SINGLE InspPlanOperationInternalID
+      FROM zjmqmi_i_insplot_char
+      WHERE InspectionLot            = @iv_prueflos
+        AND InspectionOperation      = @iv_vornr
+        AND InspectionCharacteristic = @iv_merknr
+      INTO @DATA(lv_vorglfnr).
+    CHECK sy-subrc = 0.
+    SELECT SINGLE katalgart2, auswmenge2
+      FROM qamv
+      WHERE prueflos = @iv_prueflos
+        AND vorglfnr = @lv_vorglfnr
+        AND merknr   = @iv_merknr
+      INTO @DATA(ls_qamv).
+    CHECK sy-subrc = 0
+      AND ls_qamv-katalgart2 = 'E'
+      AND ls_qamv-auswmenge2 IS NOT INITIAL.
+    SELECT SINGLE code, codegruppe
+      FROM qpct
+      WHERE katalogart = @ls_qamv-katalgart2
+        AND codegruppe = @ls_qamv-auswmenge2
+        AND sprache    = @sy-langu
+        AND kurztext   = @iv_kurztext
+      INTO @DATA(ls_pct).
+    CHECK sy-subrc = 0.
+    rs_code-code       = ls_pct-code.
+    rs_code-codegruppe = ls_pct-codegruppe.
+  ENDMETHOD.
+
+
   METHOD _post_results.
     DATA lt_vorgnr    TYPE TABLE OF string WITH EMPTY KEY.
     DATA lt_char_res  TYPE TABLE OF bapi2045d2 WITH EMPTY KEY.
@@ -630,9 +676,27 @@ CLASS lcl_handler IMPLEMENTATION.
     LOOP AT lt_vorgnr INTO DATA(lv_vornr).
       CLEAR: lt_char_res, lt_smpl_res, lt_singl_res, lt_return, ls_return.
 
+      DATA lv_radii_kurztext TYPE string.
+      DATA ls_radii_code     TYPE ty_up_code.
       LOOP AT it_rows INTO DATA(ls_row) WHERE vorgangsnummer = lv_vornr.
-        DATA(lv_vornr_str) = condense( ls_row-vorgangsnummer ).
+        DATA(lv_vornr_str)  = condense( ls_row-vorgangsnummer ).
         DATA(lv_merknr_str) = condense( ls_row-merkmalsnummer ).
+
+        CLEAR: lv_radii_kurztext, ls_radii_code.
+        IF ls_row-radii_1 IS NOT INITIAL AND ls_row-radii_2 IS INITIAL.
+          lv_radii_kurztext = ls_row-radii_1.
+        ELSEIF ls_row-radii_2 IS NOT INITIAL AND ls_row-radii_1 IS INITIAL.
+          lv_radii_kurztext = ls_row-radii_2.
+        ENDIF.
+        IF lv_radii_kurztext IS NOT INITIAL.
+          ls_radii_code = _get_radii_code(
+            iv_prueflos = iv_prueflos
+            iv_vornr    = lv_vornr_str
+            iv_merknr   = lv_merknr_str
+            iv_kurztext = lv_radii_kurztext
+          ).
+        ENDIF.
+
         DATA(lv_steuerkz) = _get_qamv_steuerkz(
           iv_prueflos = iv_prueflos
           iv_vornr    = lv_vornr_str
@@ -662,13 +726,15 @@ CLASS lcl_handler IMPLEMENTATION.
                 res_no     = lv_res_no
                 res_value  = ls_row-messwert
                 res_valuat = lv_eval
+                code_grp2  = ls_radii_code-codegruppe
+                code2      = ls_radii_code-code
                 inspector  = sy-uname
                 insp_date  = sy-datum
                 insp_time  = sy-uzeit
                 remark     = iv_filename
               ) TO lt_singl_res.
             ELSEIF ls_row-code_col_idx > 0.
-              DATA(lv_ep_pos) = ls_row-code_col_idx - 26.
+              DATA(lv_ep_pos) = ls_row-code_col_idx - 28.
               DATA(lt_ep_codes) = _get_codes_for_char(
                 iv_prueflos = iv_prueflos
                 iv_vornr    = lv_vornr_str
@@ -688,6 +754,8 @@ CLASS lcl_handler IMPLEMENTATION.
                   res_no     = lv_res_no
                   code_grp1  = lv_ep_codegrp
                   code1      = lv_ep_code
+                  code_grp2  = ls_radii_code-codegruppe
+                  code2      = ls_radii_code-code
                   res_valuat = lv_eval
                   inspector  = sy-uname
                   insp_date  = sy-datum
@@ -702,6 +770,8 @@ CLASS lcl_handler IMPLEMENTATION.
               inspchar         = ls_row-merkmalsnummer
               code_grp1        = lv_ep_codegrp
               code1            = lv_ep_code
+              code_grp2        = ls_radii_code-codegruppe
+              code2            = ls_radii_code-code
               closed           = 'X'
               evaluation       = lv_eval
               condition_active = 'X'
@@ -719,7 +789,7 @@ CLASS lcl_handler IMPLEMENTATION.
 
           WHEN OTHERS.
             IF ls_row-code_col_idx > 0.
-              DATA(lv_code_pos) = ls_row-code_col_idx - 26.
+              DATA(lv_code_pos) = ls_row-code_col_idx - 28.
               DATA(lt_codes) = _get_codes_for_char(
                 iv_prueflos = iv_prueflos
                 iv_vornr    = lv_vornr_str
@@ -731,6 +801,8 @@ CLASS lcl_handler IMPLEMENTATION.
                   inspchar  = ls_row-merkmalsnummer
                   code_grp1 = ls_code-codegruppe
                   code1     = ls_code-code
+                  code_grp2 = ls_radii_code-codegruppe
+                  code2     = ls_radii_code-code
                   closed    = 'X'
                   remark    = iv_filename
                 ) TO lt_char_res.
@@ -779,7 +851,7 @@ CLASS lcl_handler IMPLEMENTATION.
                 iv_vornr    = lv_rp_vornr
                 iv_merknr   = lv_rp_merknr
               ).
-              READ TABLE lt_pc INDEX ( ls_rp-code_col_idx - 26 ) INTO DATA(ls_pc).
+              READ TABLE lt_pc INDEX ( ls_rp-code_col_idx - 28 ) INTO DATA(ls_pc).
               IF sy-subrc = 0.
                 lv_prot_msg = |{ condense( TEXT-005 ) } { ls_pc-bewertung } - { condense( ls_pc-kurztext ) }|.
               ELSE.

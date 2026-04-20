@@ -17,7 +17,7 @@ CLASS zjmqmi_cl_upload_helper DEFINITION
              quanqual       TYPE c LENGTH 2,
              merkmalsnummer TYPE c LENGTH 4,
              messwert       TYPE string,
-             code_col_idx   TYPE i,
+             ql_kurztext    TYPE string,
              excel_row      TYPE i,
              radii_1        TYPE string,
              radii_2        TYPE string,
@@ -31,13 +31,16 @@ CLASS zjmqmi_cl_upload_helper DEFINITION
            END OF ty_up_code.
     TYPES ty_up_codes TYPE STANDARD TABLE OF ty_up_code WITH EMPTY KEY.
     TYPES: BEGIN OF ty_prot_entry,
-             prueflos  TYPE qals-prueflos,
-             filename  TYPE string,
-             excel_row TYPE i,
-             inspoper  TYPE string,
-             merknr    TYPE string,
-             status    TYPE c LENGTH 1,
-             msg       TYPE string,
+             prueflos        TYPE qals-prueflos,
+             filename        TYPE string,
+             excel_row       TYPE i,
+             inspoper        TYPE string,
+             merknr          TYPE string,
+             status          TYPE c LENGTH 1,
+             msg             TYPE string,
+             radii_code      TYPE qpac-code,
+             radii_codegrp   TYPE qpac-codegruppe,
+             radii_kurztext  TYPE qpct-kurztext,
            END OF ty_prot_entry.
     TYPES: BEGIN OF ty_bapi_input,
              char_results   TYPE TABLE OF bapi2045d2 WITH EMPTY KEY,
@@ -79,6 +82,13 @@ CLASS zjmqmi_cl_upload_helper DEFINITION
                 iv_inspoper    TYPE vornr
                 iv_inspchar    TYPE qamv-merknr
       RETURNING VALUE(rv_next) TYPE numc4.
+
+    METHODS _get_ql_code
+      IMPORTING iv_prueflos    TYPE qals-prueflos
+                iv_vornr       TYPE string
+                iv_merknr      TYPE string
+                iv_kurztext    TYPE string
+      RETURNING VALUE(rs_code) TYPE ty_up_code.
 
     METHODS _get_radii_code
       IMPORTING iv_prueflos    TYPE qals-prueflos
@@ -308,37 +318,34 @@ CLASS zjmqmi_cl_upload_helper IMPLEMENTATION.
               insp_time  = sy-uzeit
               remark     = iv_filename
             ) INTO TABLE rs_input-single_results.
-          ELSE.
-            IF ls_row-code_col_idx > 0.
-              DATA(lt_ep_codes) = _get_codes_for_char(
-                iv_prueflos = iv_prueflos
-                iv_vornr    = condense( ls_row-vorgangsnummer )
-                iv_merknr   = condense( ls_row-merkmalsnummer )
-              ).
-              READ TABLE lt_ep_codes INDEX ( ls_row-code_col_idx - 28 )
-                INTO DATA(ls_ep_code).
-              IF sy-subrc = 0.
-                IF ls_ep_code-bewertung IS NOT INITIAL.
-                  lv_eval = ls_ep_code-bewertung.
-                ENDIF.
-                lv_ep_codegrp = ls_ep_code-codegruppe.
-                lv_ep_code    = ls_ep_code-code.
-                INSERT VALUE bapi2045d4(
-                  insplot    = iv_prueflos
-                  inspoper   = iv_vornr
-                  inspchar   = ls_row-merkmalsnummer
-                  res_no     = lv_res_no
-                  code_grp1  = lv_ep_codegrp
-                  code1      = lv_ep_code
-                  code_grp2  = ls_radii_code-codegruppe
-                  code2      = ls_radii_code-code
-                  res_valuat = lv_eval
-                  inspector  = sy-uname
-                  insp_date  = sy-datum
-                  insp_time  = sy-uzeit
-                  remark     = iv_filename
-                ) INTO TABLE rs_input-single_results.
+          ELSEIF ls_row-ql_kurztext IS NOT INITIAL.
+            DATA(ls_ep_code) = _get_ql_code(
+              iv_prueflos = iv_prueflos
+              iv_vornr    = condense( ls_row-vorgangsnummer )
+              iv_merknr   = condense( ls_row-merkmalsnummer )
+              iv_kurztext = ls_row-ql_kurztext
+            ).
+            IF ls_ep_code-code IS NOT INITIAL.
+              IF ls_ep_code-bewertung IS NOT INITIAL.
+                lv_eval = ls_ep_code-bewertung.
               ENDIF.
+              lv_ep_codegrp = ls_ep_code-codegruppe.
+              lv_ep_code    = ls_ep_code-code.
+              INSERT VALUE bapi2045d4(
+                insplot    = iv_prueflos
+                inspoper   = iv_vornr
+                inspchar   = ls_row-merkmalsnummer
+                res_no     = lv_res_no
+                code_grp1  = lv_ep_codegrp
+                code1      = lv_ep_code
+                code_grp2  = ls_radii_code-codegruppe
+                code2      = ls_radii_code-code
+                res_valuat = lv_eval
+                inspector  = sy-uname
+                insp_date  = sy-datum
+                insp_time  = sy-uzeit
+                remark     = iv_filename
+              ) INTO TABLE rs_input-single_results.
             ENDIF.
           ENDIF.
           INSERT VALUE bapi2045d2(
@@ -365,19 +372,18 @@ CLASS zjmqmi_cl_upload_helper IMPLEMENTATION.
           ) INTO TABLE rs_input-sample_results.
 
         WHEN OTHERS.
-          IF ls_row-code_col_idx > 0.
-            DATA(lt_codes) = _get_codes_for_char(
+          IF ls_row-ql_kurztext IS NOT INITIAL.
+            DATA(ls_oth_code) = _get_ql_code(
               iv_prueflos = iv_prueflos
               iv_vornr    = condense( ls_row-vorgangsnummer )
               iv_merknr   = condense( ls_row-merkmalsnummer )
+              iv_kurztext = ls_row-ql_kurztext
             ).
-            READ TABLE lt_codes INDEX ( ls_row-code_col_idx - 28 )
-              INTO DATA(ls_code).
-            IF sy-subrc = 0.
+            IF ls_oth_code-code IS NOT INITIAL.
               INSERT VALUE bapi2045d2(
                 inspchar  = ls_row-merkmalsnummer
-                code_grp1 = ls_code-codegruppe
-                code1     = ls_code-code
+                code_grp1 = ls_oth_code-codegruppe
+                code1     = ls_oth_code-code
                 code_grp2 = ls_radii_code-codegruppe
                 code2     = ls_radii_code-code
                 closed    = `X`
@@ -398,13 +404,32 @@ CLASS zjmqmi_cl_upload_helper IMPLEMENTATION.
     ENDIF.
     DATA(lv_has_error) = xsdbool( sy-subrc = 0 ).
 
+    DATA lv_ri_kt      TYPE string.
+    DATA ls_ri_code    TYPE ty_up_code.
     LOOP AT it_rows INTO DATA(ls_row) WHERE vorgangsnummer = iv_vornr.
+      CLEAR: lv_ri_kt, ls_ri_code.
+      IF ls_row-radii_1 IS NOT INITIAL AND ls_row-radii_2 IS INITIAL.
+        lv_ri_kt = ls_row-radii_1.
+      ELSEIF ls_row-radii_2 IS NOT INITIAL AND ls_row-radii_1 IS INITIAL.
+        lv_ri_kt = ls_row-radii_2.
+      ENDIF.
+      IF lv_ri_kt IS NOT INITIAL.
+        ls_ri_code = _get_radii_code(
+          iv_prueflos = iv_prueflos
+          iv_vornr    = condense( ls_row-vorgangsnummer )
+          iv_merknr   = condense( ls_row-merkmalsnummer )
+          iv_kurztext = lv_ri_kt
+        ).
+      ENDIF.
       DATA(ls_entry) = VALUE ty_prot_entry(
-        prueflos  = iv_prueflos
-        filename  = iv_filename
-        excel_row = ls_row-excel_row
-        inspoper  = condense( ls_row-vorgangsnummer )
-        merknr    = condense( ls_row-merkmalsnummer )
+        prueflos       = iv_prueflos
+        filename       = iv_filename
+        excel_row      = ls_row-excel_row
+        inspoper       = condense( ls_row-vorgangsnummer )
+        merknr         = condense( ls_row-merkmalsnummer )
+        radii_code     = ls_ri_code-code
+        radii_codegrp  = ls_ri_code-codegruppe
+        radii_kurztext = ls_ri_code-kurztext
       ).
       IF lv_has_error = abap_true.
         ls_entry-status = `E`.
@@ -434,15 +459,15 @@ CLASS zjmqmi_cl_upload_helper IMPLEMENTATION.
       rv_msg = |{ condense( TEXT-006 ) } { lv_eval } - { is_row-messwert }|.
       RETURN.
     ENDIF.
-    IF is_row-code_col_idx > 0.
-      DATA(lt_codes) = _get_codes_for_char(
+    IF is_row-ql_kurztext IS NOT INITIAL.
+      DATA(ls_sc) = _get_ql_code(
         iv_prueflos = iv_prueflos
         iv_vornr    = condense( is_row-vorgangsnummer )
         iv_merknr   = condense( is_row-merkmalsnummer )
+        iv_kurztext = is_row-ql_kurztext
       ).
-      READ TABLE lt_codes INDEX ( is_row-code_col_idx - 28 ) INTO DATA(ls_code).
-      IF sy-subrc = 0.
-        rv_msg = |{ condense( TEXT-006 ) } { ls_code-bewertung } - { condense( ls_code-kurztext ) }|.
+      IF ls_sc-code IS NOT INITIAL.
+        rv_msg = |{ condense( TEXT-006 ) } { ls_sc-bewertung } - { is_row-ql_kurztext }|.
         RETURN.
       ENDIF.
     ENDIF.
@@ -606,26 +631,25 @@ CLASS zjmqmi_cl_upload_helper IMPLEMENTATION.
         CASE lv_col_idx.
           WHEN 1.  ls_row-prueflosnummer = condense( lv_cell_val ).
           WHEN 10. ls_row-vorgangsnummer = condense( lv_cell_val ).
-          WHEN 15. ls_row-quanqual       = condense( lv_cell_val ).
-          WHEN 16. ls_row-merkmalsnummer = condense( lv_cell_val ).
-          WHEN 27.
+          WHEN 15. ls_row-merkmalsnummer = condense( lv_cell_val ).
+          WHEN 26.
             IF condense( lv_cell_val ) <> ``.
               ls_row-radii_1 = condense( lv_cell_val ).
             ENDIF.
-          WHEN 28.
+          WHEN 27.
             IF condense( lv_cell_val ) <> ``.
               ls_row-radii_2 = condense( lv_cell_val ).
             ENDIF.
-          WHEN OTHERS.
-            IF lv_col_idx >= 29 AND condense( lv_cell_val ) <> ``.
+          WHEN 28. ls_row-quanqual = condense( lv_cell_val ).
+          WHEN 29.
+            IF condense( lv_cell_val ) <> ``.
               IF ls_row-quanqual = `QN`.
                 ls_row-messwert = condense( lv_cell_val ).
               ELSE.
-                IF ls_row-code_col_idx = 0.
-                  ls_row-code_col_idx = lv_col_idx.
-                ENDIF.
+                ls_row-ql_kurztext = condense( lv_cell_val ).
               ENDIF.
             ENDIF.
+          WHEN OTHERS.
         ENDCASE.
 
         lv_cell_rest = substring( val = lv_cell_rest off = lv_c_end + 4 ).
@@ -688,9 +712,12 @@ CLASS zjmqmi_cl_upload_helper IMPLEMENTATION.
     ls_prot-prot_guid      = lv_guid.
     ls_prot-prot_filename  = entry-filename.
     ls_prot-prot_rownr     = entry-excel_row.
-    ls_prot-prot_inspoper  = entry-inspoper.
-    ls_prot-prot_insp_char = entry-merknr.
-    ls_prot-prot_status    = entry-status.
+    ls_prot-prot_inspoper      = entry-inspoper.
+    ls_prot-prot_insp_char     = entry-merknr.
+    ls_prot-prot_radii_code     = entry-radii_code.
+    ls_prot-prot_radii_codegrp  = entry-radii_codegrp.
+    ls_prot-prot_radii_kurztext = entry-radii_kurztext.
+    ls_prot-prot_status         = entry-status.
     ls_prot-prot_msg       = entry-msg.
     ls_prot-created_by     = sy-uname.
     ls_prot-created_at     = ls_prot-prot_timestamp.
@@ -773,6 +800,43 @@ CLASS zjmqmi_cl_upload_helper IMPLEMENTATION.
   ENDMETHOD.
 
 
+  METHOD _get_ql_code.
+    DATA lv_vorglfnr TYPE qamv-vorglfnr.
+    SELECT SINGLE InspPlanOperationInternalID
+      FROM zjmqmi_i_insplot_char
+      WHERE InspectionLot            = @iv_prueflos
+        AND InspectionOperation      = @iv_vornr
+        AND InspectionCharacteristic = @iv_merknr
+      INTO @lv_vorglfnr.
+    CHECK sy-subrc = 0.
+    SELECT SINGLE katalgart1, auswmenge1, auswmgwrk1
+      FROM qamv
+      WHERE prueflos = @iv_prueflos
+        AND vorglfnr = @lv_vorglfnr
+        AND merknr   = @iv_merknr
+      INTO @DATA(ls_qamv).
+    CHECK sy-subrc = 0
+      AND ls_qamv-katalgart1 IS NOT INITIAL
+      AND ls_qamv-auswmenge1 IS NOT INITIAL.
+    SELECT SINGLE qpac~codegruppe, qpac~code, qpac~bewertung
+      FROM qpac
+      INNER JOIN qpct
+        ON  qpct~katalogart = qpac~katalogart
+        AND qpct~codegruppe = qpac~codegruppe
+        AND qpct~code       = qpac~code
+        AND qpct~sprache    = @sy-langu
+      WHERE qpac~katalogart = @ls_qamv-katalgart1
+        AND qpac~werks      = @ls_qamv-auswmgwrk1
+        AND qpac~auswahlmge = @ls_qamv-auswmenge1
+        AND qpct~kurztext   = @iv_kurztext
+      INTO @DATA(ls_match).
+    CHECK sy-subrc = 0.
+    rs_code-code       = ls_match-code.
+    rs_code-codegruppe = ls_match-codegruppe.
+    rs_code-bewertung  = ls_match-bewertung.
+  ENDMETHOD.
+
+
   METHOD _get_radii_code.
     DATA lv_vorglfnr TYPE qamv-vorglfnr.
     SELECT SINGLE InspPlanOperationInternalID
@@ -791,7 +855,7 @@ CLASS zjmqmi_cl_upload_helper IMPLEMENTATION.
     CHECK sy-subrc = 0
       AND ls_qamv-katalgart2 = `E`
       AND ls_qamv-auswmenge2 IS NOT INITIAL.
-    SELECT SINGLE code, codegruppe
+    SELECT SINGLE code, codegruppe, kurztext
       FROM qpct
       WHERE katalogart = @ls_qamv-katalgart2
         AND codegruppe = @ls_qamv-auswmenge2
@@ -801,6 +865,7 @@ CLASS zjmqmi_cl_upload_helper IMPLEMENTATION.
     CHECK sy-subrc = 0.
     rs_code-code       = ls_pct-code.
     rs_code-codegruppe = ls_pct-codegruppe.
+    rs_code-kurztext   = ls_pct-kurztext.
   ENDMETHOD.
 
 

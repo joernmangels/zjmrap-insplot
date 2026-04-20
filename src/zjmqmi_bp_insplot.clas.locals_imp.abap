@@ -4,7 +4,7 @@ TYPES: BEGIN OF ty_upload_row,
          quanqual       TYPE c LENGTH 2,
          merkmalsnummer TYPE c LENGTH 4,
          messwert       TYPE string,
-         code_col_idx   TYPE i,
+         ql_kurztext    TYPE string,
          excel_row      TYPE i,
          radii_1        TYPE string,
          radii_2        TYPE string,
@@ -126,16 +126,25 @@ CLASS lcl_handler DEFINITION INHERITING FROM cl_abap_behavior_handler.
                 iv_inspchar    TYPE qamv-merknr
       RETURNING VALUE(rv_next) TYPE numc4.
     METHODS _write_prot
-      IMPORTING iv_prueflos  TYPE qals-prueflos
-                iv_filename  TYPE string
-                iv_excel_row TYPE i
-                iv_inspoper  TYPE string
-                iv_merknr    TYPE string
-                iv_status    TYPE ty_prot_status
-                iv_msg       TYPE string.
+      IMPORTING iv_prueflos       TYPE qals-prueflos
+                iv_filename       TYPE string
+                iv_excel_row      TYPE i
+                iv_inspoper       TYPE string
+                iv_merknr         TYPE string
+                iv_status         TYPE ty_prot_status
+                iv_msg            TYPE string
+                iv_radii_code     TYPE qpac-code        OPTIONAL
+                iv_radii_codegrp  TYPE qpac-codegruppe  OPTIONAL
+                iv_radii_kurztext TYPE qpct-kurztext    OPTIONAL.
     METHODS _update_status
       IMPORTING iv_prueflos TYPE qals-prueflos
                 iv_status   TYPE ty_prot_status.
+    METHODS _get_ql_code
+      IMPORTING iv_prueflos    TYPE qals-prueflos
+                iv_vornr       TYPE string
+                iv_merknr      TYPE string
+                iv_kurztext    TYPE string
+      RETURNING VALUE(rs_code) TYPE ty_up_code.
     METHODS _get_radii_code
       IMPORTING iv_prueflos    TYPE qals-prueflos
                 iv_vornr       TYPE string
@@ -169,7 +178,9 @@ CLASS lcl_handler IMPLEMENTATION.
   METHOD read_by_assoc_proteintrag.
     IF keys_for_read IS INITIAL. RETURN. ENDIF.
     SELECT prueflos, prot_guid, prot_timestamp, prot_filename, prot_rownr,
-           prot_inspoper, prot_insp_char, prot_status, prot_msg, created_by, created_at
+           prot_inspoper, prot_insp_char,
+           prot_radii_code, prot_radii_codegrp, prot_radii_kurztext,
+           prot_status, prot_msg, created_by, created_at
       FROM zjmqmit_prot
       FOR ALL ENTRIES IN @keys_for_read
       WHERE prueflos = @keys_for_read-InspectionLot
@@ -188,6 +199,9 @@ CLASS lcl_handler IMPLEMENTATION.
         RowNumber                = <p>-prot_rownr
         InspectionOperation      = <p>-prot_inspoper
         InspectionCharacteristic = <p>-prot_insp_char
+        RadiiCode                = <p>-prot_radii_code
+        RadiiCodeGroup           = <p>-prot_radii_codegrp
+        RadiiKurztext            = <p>-prot_radii_kurztext
         Status                   = <p>-prot_status
         Message                  = <p>-prot_msg
         CreatedBy                = <p>-created_by
@@ -232,6 +246,9 @@ CLASS lcl_handler IMPLEMENTATION.
           RowNumber                = ls-prot_rownr
           InspectionOperation      = ls-prot_inspoper
           InspectionCharacteristic = ls-prot_insp_char
+          RadiiCode                = ls-prot_radii_code
+          RadiiCodeGroup           = ls-prot_radii_codegrp
+          RadiiKurztext            = ls-prot_radii_kurztext
           Status                   = ls-prot_status
           Message                  = ls-prot_msg
           CreatedBy                = ls-created_by
@@ -468,24 +485,25 @@ CLASS lcl_handler IMPLEMENTATION.
         CASE lv_col_idx.
           WHEN 1.  ls_row-prueflosnummer = condense( lv_cell_val ).
           WHEN 10. ls_row-vorgangsnummer = condense( lv_cell_val ).
-          WHEN 15. ls_row-quanqual       = condense( lv_cell_val ).
-          WHEN 16. ls_row-merkmalsnummer = condense( lv_cell_val ).
-          WHEN 27.
+          WHEN 15. ls_row-merkmalsnummer = condense( lv_cell_val ).
+          WHEN 26.
             IF condense( lv_cell_val ) <> ``.
               ls_row-radii_1 = condense( lv_cell_val ).
             ENDIF.
-          WHEN 28.
+          WHEN 27.
             IF condense( lv_cell_val ) <> ``.
               ls_row-radii_2 = condense( lv_cell_val ).
             ENDIF.
-          WHEN OTHERS.
-            IF lv_col_idx >= 29 AND condense( lv_cell_val ) <> ``.
+          WHEN 28. ls_row-quanqual = condense( lv_cell_val ).
+          WHEN 29.
+            IF condense( lv_cell_val ) <> ``.
               IF ls_row-quanqual = 'QN'.
                 ls_row-messwert = condense( lv_cell_val ).
-              ELSEIF ls_row-code_col_idx = 0.
-                ls_row-code_col_idx = lv_col_idx.
+              ELSE.
+                ls_row-ql_kurztext = condense( lv_cell_val ).
               ENDIF.
             ENDIF.
+          WHEN OTHERS.
         ENDCASE.
 
         FIND FIRST OCCURRENCE OF `</c>` IN lv_cell_rest MATCH OFFSET lv_c_end.
@@ -544,9 +562,12 @@ CLASS lcl_handler IMPLEMENTATION.
     ls_prot-prot_guid      = lv_guid.
     ls_prot-prot_filename  = iv_filename.
     ls_prot-prot_rownr     = iv_excel_row.
-    ls_prot-prot_inspoper  = iv_inspoper.
-    ls_prot-prot_insp_char = iv_merknr.
-    ls_prot-prot_status    = iv_status.
+    ls_prot-prot_inspoper      = iv_inspoper.
+    ls_prot-prot_insp_char     = iv_merknr.
+    ls_prot-prot_radii_code     = iv_radii_code.
+    ls_prot-prot_radii_codegrp  = iv_radii_codegrp.
+    ls_prot-prot_radii_kurztext = iv_radii_kurztext.
+    ls_prot-prot_status         = iv_status.
     ls_prot-prot_msg       = iv_msg.
     ls_prot-created_by     = sy-uname.
     ls_prot-created_at     = ls_prot-prot_timestamp.
@@ -621,6 +642,42 @@ CLASS lcl_handler IMPLEMENTATION.
     rv_next = lines( lt_singl ) + 1.
   ENDMETHOD.
 
+  METHOD _get_ql_code.
+    SELECT SINGLE InspPlanOperationInternalID
+      FROM zjmqmi_i_insplot_char
+      WHERE InspectionLot            = @iv_prueflos
+        AND InspectionOperation      = @iv_vornr
+        AND InspectionCharacteristic = @iv_merknr
+      INTO @DATA(lv_vorglfnr).
+    CHECK sy-subrc = 0.
+    SELECT SINGLE katalgart1, auswmenge1, auswmgwrk1
+      FROM qamv
+      WHERE prueflos = @iv_prueflos
+        AND vorglfnr = @lv_vorglfnr
+        AND merknr   = @iv_merknr
+      INTO @DATA(ls_qamv).
+    CHECK sy-subrc = 0
+      AND ls_qamv-katalgart1 IS NOT INITIAL
+      AND ls_qamv-auswmenge1 IS NOT INITIAL.
+    SELECT SINGLE qpac~codegruppe, qpac~code, qpac~bewertung
+      FROM qpac
+      INNER JOIN qpct
+        ON  qpct~katalogart = qpac~katalogart
+        AND qpct~codegruppe = qpac~codegruppe
+        AND qpct~code       = qpac~code
+        AND qpct~sprache    = @sy-langu
+      WHERE qpac~katalogart = @ls_qamv-katalgart1
+        AND qpac~werks      = @ls_qamv-auswmgwrk1
+        AND qpac~auswahlmge = @ls_qamv-auswmenge1
+        AND qpct~kurztext   = @iv_kurztext
+      INTO @DATA(ls_match).
+    CHECK sy-subrc = 0.
+    rs_code-code       = ls_match-code.
+    rs_code-codegruppe = ls_match-codegruppe.
+    rs_code-bewertung  = ls_match-bewertung.
+  ENDMETHOD.
+
+
   METHOD _get_radii_code.
     SELECT SINGLE InspPlanOperationInternalID
       FROM zjmqmi_i_insplot_char
@@ -638,7 +695,7 @@ CLASS lcl_handler IMPLEMENTATION.
     CHECK sy-subrc = 0
       AND ls_qamv-katalgart2 = 'E'
       AND ls_qamv-auswmenge2 IS NOT INITIAL.
-    SELECT SINGLE code, codegruppe
+    SELECT SINGLE code, codegruppe, kurztext
       FROM qpct
       WHERE katalogart = @ls_qamv-katalgart2
         AND codegruppe = @ls_qamv-auswmenge2
@@ -648,6 +705,7 @@ CLASS lcl_handler IMPLEMENTATION.
     CHECK sy-subrc = 0.
     rs_code-code       = ls_pct-code.
     rs_code-codegruppe = ls_pct-codegruppe.
+    rs_code-kurztext   = ls_pct-kurztext.
   ENDMETHOD.
 
 
@@ -733,15 +791,14 @@ CLASS lcl_handler IMPLEMENTATION.
                 insp_time  = sy-uzeit
                 remark     = iv_filename
               ) TO lt_singl_res.
-            ELSEIF ls_row-code_col_idx > 0.
-              DATA(lv_ep_pos) = ls_row-code_col_idx - 28.
-              DATA(lt_ep_codes) = _get_codes_for_char(
+            ELSEIF ls_row-ql_kurztext IS NOT INITIAL.
+              DATA(ls_ep_code) = _get_ql_code(
                 iv_prueflos = iv_prueflos
                 iv_vornr    = lv_vornr_str
                 iv_merknr   = lv_merknr_str
+                iv_kurztext = ls_row-ql_kurztext
               ).
-              READ TABLE lt_ep_codes INDEX lv_ep_pos INTO DATA(ls_ep_code).
-              IF sy-subrc = 0.
+              IF ls_ep_code-code IS NOT INITIAL.
                 IF ls_ep_code-bewertung IS NOT INITIAL.
                   lv_eval = ls_ep_code-bewertung.
                 ENDIF.
@@ -788,19 +845,18 @@ CLASS lcl_handler IMPLEMENTATION.
             ) TO lt_smpl_res.
 
           WHEN OTHERS.
-            IF ls_row-code_col_idx > 0.
-              DATA(lv_code_pos) = ls_row-code_col_idx - 28.
-              DATA(lt_codes) = _get_codes_for_char(
+            IF ls_row-ql_kurztext IS NOT INITIAL.
+              DATA(ls_oth_code) = _get_ql_code(
                 iv_prueflos = iv_prueflos
                 iv_vornr    = lv_vornr_str
                 iv_merknr   = lv_merknr_str
+                iv_kurztext = ls_row-ql_kurztext
               ).
-              READ TABLE lt_codes INDEX lv_code_pos INTO DATA(ls_code).
-              IF sy-subrc = 0.
+              IF ls_oth_code-code IS NOT INITIAL.
                 APPEND VALUE bapi2045d2(
                   inspchar  = ls_row-merkmalsnummer
-                  code_grp1 = ls_code-codegruppe
-                  code1     = ls_code-code
+                  code_grp1 = ls_oth_code-codegruppe
+                  code1     = ls_oth_code-code
                   code_grp2 = ls_radii_code-codegruppe
                   code2     = ls_radii_code-code
                   closed    = 'X'
@@ -824,7 +880,23 @@ CLASS lcl_handler IMPLEMENTATION.
           single_results = lt_singl_res
           returntable    = lt_return.
 
+      DATA lv_ri_kt   TYPE string.
+      DATA ls_ri_code TYPE ty_up_code.
       LOOP AT it_rows INTO DATA(ls_rp) WHERE vorgangsnummer = lv_vornr.
+        CLEAR: lv_ri_kt, ls_ri_code.
+        IF ls_rp-radii_1 IS NOT INITIAL AND ls_rp-radii_2 IS INITIAL.
+          lv_ri_kt = ls_rp-radii_1.
+        ELSEIF ls_rp-radii_2 IS NOT INITIAL AND ls_rp-radii_1 IS INITIAL.
+          lv_ri_kt = ls_rp-radii_2.
+        ENDIF.
+        IF lv_ri_kt IS NOT INITIAL.
+          ls_ri_code = _get_radii_code(
+            iv_prueflos = iv_prueflos
+            iv_vornr    = condense( ls_rp-vorgangsnummer )
+            iv_merknr   = condense( ls_rp-merkmalsnummer )
+            iv_kurztext = lv_ri_kt
+          ).
+        ENDIF.
         lv_prot_stat = 'S'.
         CLEAR lv_prot_msg.
         LOOP AT lt_return INTO DATA(ls_ret) WHERE type = 'E' OR type = 'A'.
@@ -845,15 +917,15 @@ CLASS lcl_handler IMPLEMENTATION.
             ).
             lv_prot_msg = |{ condense( TEXT-005 ) } { lv_pm_eval } - { ls_rp-messwert }|.
           ELSE.
-            IF ls_rp-code_col_idx > 0.
-              DATA(lt_pc) = _get_codes_for_char(
+            IF ls_rp-ql_kurztext IS NOT INITIAL.
+              DATA(ls_pm_code) = _get_ql_code(
                 iv_prueflos = iv_prueflos
                 iv_vornr    = lv_rp_vornr
                 iv_merknr   = lv_rp_merknr
+                iv_kurztext = ls_rp-ql_kurztext
               ).
-              READ TABLE lt_pc INDEX ( ls_rp-code_col_idx - 28 ) INTO DATA(ls_pc).
-              IF sy-subrc = 0.
-                lv_prot_msg = |{ condense( TEXT-005 ) } { ls_pc-bewertung } - { condense( ls_pc-kurztext ) }|.
+              IF ls_pm_code-code IS NOT INITIAL.
+                lv_prot_msg = |{ condense( TEXT-005 ) } { ls_pm_code-bewertung } - { ls_rp-ql_kurztext }|.
               ELSE.
                 lv_prot_msg = TEXT-006.
               ENDIF.
@@ -863,13 +935,16 @@ CLASS lcl_handler IMPLEMENTATION.
           ENDIF.
         ENDIF.
         _write_prot(
-          iv_prueflos  = iv_prueflos
-          iv_filename  = iv_filename
-          iv_excel_row = ls_rp-excel_row
-          iv_inspoper  = condense( ls_rp-vorgangsnummer )
-          iv_merknr    = condense( ls_rp-merkmalsnummer )
-          iv_status    = lv_prot_stat
-          iv_msg       = lv_prot_msg
+          iv_prueflos       = iv_prueflos
+          iv_filename       = iv_filename
+          iv_excel_row      = ls_rp-excel_row
+          iv_inspoper       = condense( ls_rp-vorgangsnummer )
+          iv_merknr         = condense( ls_rp-merkmalsnummer )
+          iv_status         = lv_prot_stat
+          iv_msg            = lv_prot_msg
+          iv_radii_code     = ls_ri_code-code
+          iv_radii_codegrp  = ls_ri_code-codegruppe
+          iv_radii_kurztext = ls_ri_code-kurztext
         ).
       ENDLOOP.
     ENDLOOP.

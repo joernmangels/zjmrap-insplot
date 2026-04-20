@@ -171,7 +171,7 @@
     <item>
      <ID>I</ID>
      <KEY>027</KEY>
-     <ENTRY>Bewertung / Code 1</ENTRY>
+     <ENTRY>Bewertung / Code</ENTRY>
      <LENGTH>28</LENGTH>
     </item>
     <item>
@@ -356,7 +356,7 @@
       <item>
        <ID>I</ID>
        <KEY>027</KEY>
-       <ENTRY>Valuation / Code 1</ENTRY>
+       <ENTRY>Valuation / Code</ENTRY>
        <LENGTH>28</LENGTH>
       </item>
       <item>

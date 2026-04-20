@@ -40,7 +40,7 @@ CLASS zjmqmi_cl_icf_download DEFINITION
              losgroesse      TYPE c LENGTH 10,
              qc_department   TYPE c LENGTH 1,
              is_quantitative TYPE abap_bool,
-             codes           TYPE ty_codes,
+             ql_dropdown     TYPE string,
              radii_codes_1   TYPE string,
              radii_codes_2   TYPE string,
            END OF ty_row.
@@ -396,10 +396,14 @@ CLASS zjmqmi_cl_icf_download IMPLEMENTATION.
         ls_row-is_quantitative = abap_false.
         ls_row-sollwert_ql     = <c>-selectedcodeset.
         ls_row-toleranz_ql     = <c>-characteristicattributecatalog.
-        ls_row-codes = _get_codes(
+        DATA(lt_ql_codes) = _get_codes(
           iv_prueflos = <c>-inspectionlot
           iv_vorglfnr = <c>-insplanoperationinternalid
           iv_merknr   = <c>-inspectioncharacteristic ).
+        LOOP AT lt_ql_codes INTO DATA(ls_ql_cd).
+          IF ls_row-ql_dropdown IS NOT INITIAL. ls_row-ql_dropdown &&= `,`. ENDIF.
+          ls_row-ql_dropdown &&= condense( ls_ql_cd-kurztext ).
+        ENDLOOP.
       ENDIF.
       INSERT ls_row INTO TABLE rt_data.
     ENDLOOP.
@@ -429,15 +433,7 @@ CLASS zjmqmi_cl_icf_download IMPLEMENTATION.
 
 
   METHOD _send_xlsx.
-    " Max-Codes über alle QL-Merkmale bestimmen
-    DATA(lv_max_codes) = 1.
-    LOOP AT it_data ASSIGNING FIELD-SYMBOL(<r>).
-      IF <r>-is_quantitative = abap_false AND lines( <r>-codes ) > lv_max_codes.
-        lv_max_codes = lines( <r>-codes ).
-      ENDIF.
-    ENDLOOP.
-
-    " Header-Zeile (Zeile 1) — fixe Spalten 1-27
+    " Header-Zeile (Zeile 1) — fixe Spalten 1-29
     DATA(lv_hdr) =
         _cell( iv_col = 1  iv_row = 1 iv_val = |{ TEXT-001 }| )
      && _cell( iv_col = 2  iv_row = 1 iv_val = |{ TEXT-002 }| )
@@ -453,32 +449,26 @@ CLASS zjmqmi_cl_icf_download IMPLEMENTATION.
      && _cell( iv_col = 12 iv_row = 1 iv_val = |{ TEXT-012 }| )
      && _cell( iv_col = 13 iv_row = 1 iv_val = |{ TEXT-013 }| )
      && _cell( iv_col = 14 iv_row = 1 iv_val = |{ TEXT-014 }| )
-     && _cell( iv_col = 15 iv_row = 1 iv_val = |{ TEXT-015 }| )
-     && _cell( iv_col = 16 iv_row = 1 iv_val = |{ TEXT-016 }| )
-     && _cell( iv_col = 17 iv_row = 1 iv_val = |{ TEXT-017 }| )
-     && _cell( iv_col = 18 iv_row = 1 iv_val = |{ TEXT-018 }| )
-     && _cell( iv_col = 19 iv_row = 1 iv_val = |{ TEXT-019 }| )
-     && _cell( iv_col = 20 iv_row = 1 iv_val = |{ TEXT-020 }| )
-     && _cell( iv_col = 21 iv_row = 1 iv_val = |{ TEXT-021 }| )
-     && _cell( iv_col = 22 iv_row = 1 iv_val = |{ TEXT-022 }| )
-     && _cell( iv_col = 23 iv_row = 1 iv_val = |{ TEXT-023 }| )
-     && _cell( iv_col = 24 iv_row = 1 iv_val = |{ TEXT-024 }| )
-     && _cell( iv_col = 25 iv_row = 1 iv_val = |{ TEXT-025 }| )
-     && _cell( iv_col = 26 iv_row = 1 iv_val = |{ TEXT-026 }| )
-     && _cell( iv_col = 27 iv_row = 1 iv_val = |{ TEXT-029 }| )
-     && _cell( iv_col = 28 iv_row = 1 iv_val = |{ TEXT-030 }| )
+     && _cell( iv_col = 15 iv_row = 1 iv_val = |{ TEXT-016 }| )
+     && _cell( iv_col = 16 iv_row = 1 iv_val = |{ TEXT-017 }| )
+     && _cell( iv_col = 17 iv_row = 1 iv_val = |{ TEXT-018 }| )
+     && _cell( iv_col = 18 iv_row = 1 iv_val = |{ TEXT-019 }| )
+     && _cell( iv_col = 19 iv_row = 1 iv_val = |{ TEXT-020 }| )
+     && _cell( iv_col = 20 iv_row = 1 iv_val = |{ TEXT-021 }| )
+     && _cell( iv_col = 21 iv_row = 1 iv_val = |{ TEXT-022 }| )
+     && _cell( iv_col = 22 iv_row = 1 iv_val = |{ TEXT-023 }| )
+     && _cell( iv_col = 23 iv_row = 1 iv_val = |{ TEXT-024 }| )
+     && _cell( iv_col = 24 iv_row = 1 iv_val = |{ TEXT-025 }| )
+     && _cell( iv_col = 25 iv_row = 1 iv_val = |{ TEXT-026 }| )
+     && _cell( iv_col = 26 iv_row = 1 iv_val = |{ TEXT-029 }| )
+     && _cell( iv_col = 27 iv_row = 1 iv_val = |{ TEXT-030 }| )
+     && _cell( iv_col = 28 iv_row = 1 iv_val = |{ TEXT-015 }| )
      && _cell( iv_col = 29 iv_row = 1 iv_val = |{ TEXT-027 }| ).
-    DATA(lv_col_idx) = 30.
-    DO lv_max_codes - 1 TIMES.
-      lv_hdr &&= _cell( iv_col = lv_col_idx iv_row = 1 iv_val = |Code { lv_col_idx - 28 }| ).
-      lv_col_idx += 1.
-    ENDDO.
     DATA(lv_rows) = |<row r="1">{ lv_hdr }</row>|.
 
     " Datenzeilen
     DATA(lv_ridx) = 1.
     DATA lv_cells TYPE string.
-    DATA lv_cc    TYPE i.
     LOOP AT it_data ASSIGNING FIELD-SYMBOL(<d>).
       lv_ridx += 1.
       lv_cells =
@@ -496,29 +486,21 @@ CLASS zjmqmi_cl_icf_download IMPLEMENTATION.
         && _cell( iv_col = 12 iv_row = lv_ridx iv_val = |{ <d>-fhm }|            )
         && _cell( iv_col = 13 iv_row = lv_ridx iv_val = |{ <d>-fhm_text }|       )
         && _cell( iv_col = 14 iv_row = lv_ridx iv_val = |{ <d>-stammerkmal }|    )
-        && _cell( iv_col = 15 iv_row = lv_ridx iv_val = |{ <d>-quanqual }|       )
-        && _cell( iv_col = 16 iv_row = lv_ridx iv_val = |{ <d>-merkmalsnummer }| )
-        && _cell( iv_col = 17 iv_row = lv_ridx iv_val = |{ <d>-kurztext }|       )
-        && _cell( iv_col = 18 iv_row = lv_ridx iv_val = |{ <d>-pruefmethode }|   )
-        && _cell( iv_col = 19 iv_row = lv_ridx iv_val = |{ <d>-sollwert_ql }|    )
-        && _cell( iv_col = 20 iv_row = lv_ridx iv_val = |{ <d>-toleranz_ql }|    )
-        && _cell( iv_col = 21 iv_row = lv_ridx iv_val = |{ <d>-langtext }|       )
-        && _cell( iv_col = 22 iv_row = lv_ridx iv_val = |{ <d>-sollwert_qn }|    )
-        && _cell( iv_col = 23 iv_row = lv_ridx iv_val = |{ <d>-toleranz_ob }|    )
-        && _cell( iv_col = 24 iv_row = lv_ridx iv_val = |{ <d>-toleranz_un }|    )
-        && _cell( iv_col = 25 iv_row = lv_ridx iv_val = |{ <d>-losgroesse }|     )
-        && _cell( iv_col = 26 iv_row = lv_ridx iv_val = |{ <d>-qc_department }|  )
+        && _cell( iv_col = 15 iv_row = lv_ridx iv_val = |{ <d>-merkmalsnummer }| )
+        && _cell( iv_col = 16 iv_row = lv_ridx iv_val = |{ <d>-kurztext }|       )
+        && _cell( iv_col = 17 iv_row = lv_ridx iv_val = |{ <d>-pruefmethode }|   )
+        && _cell( iv_col = 18 iv_row = lv_ridx iv_val = |{ <d>-sollwert_ql }|    )
+        && _cell( iv_col = 19 iv_row = lv_ridx iv_val = |{ <d>-toleranz_ql }|    )
+        && _cell( iv_col = 20 iv_row = lv_ridx iv_val = |{ <d>-langtext }|       )
+        && _cell( iv_col = 21 iv_row = lv_ridx iv_val = |{ <d>-sollwert_qn }|    )
+        && _cell( iv_col = 22 iv_row = lv_ridx iv_val = |{ <d>-toleranz_ob }|    )
+        && _cell( iv_col = 23 iv_row = lv_ridx iv_val = |{ <d>-toleranz_un }|    )
+        && _cell( iv_col = 24 iv_row = lv_ridx iv_val = |{ <d>-losgroesse }|     )
+        && _cell( iv_col = 25 iv_row = lv_ridx iv_val = |{ <d>-qc_department }|  )
+        && _cell( iv_col = 26 iv_row = lv_ridx iv_val = `` )
         && _cell( iv_col = 27 iv_row = lv_ridx iv_val = `` )
-        && _cell( iv_col = 28 iv_row = lv_ridx iv_val = `` ).
-      IF <d>-is_quantitative = abap_true.
-        lv_cells &&= _cell( iv_col = 29 iv_row = lv_ridx iv_val = `` ).
-      ELSE.
-        lv_cc = 29.
-        LOOP AT <d>-codes ASSIGNING FIELD-SYMBOL(<cd>).
-          lv_cells &&= _cell( iv_col = lv_cc iv_row = lv_ridx iv_val = condense( <cd>-kurztext ) ).
-          lv_cc += 1.
-        ENDLOOP.
-      ENDIF.
+        && _cell( iv_col = 28 iv_row = lv_ridx iv_val = |{ <d>-quanqual }|       )
+        && _cell( iv_col = 29 iv_row = lv_ridx iv_val = `` ).
       lv_rows &&= |<row r="{ lv_ridx }">{ lv_cells }</row>|.
     ENDLOOP.
 
@@ -538,25 +520,21 @@ CLASS zjmqmi_cl_icf_download IMPLEMENTATION.
         `<col min="12" max="12" width="12" customWidth="1"/>` &&
         `<col min="13" max="13" width="36" customWidth="1"/>` &&
         `<col min="14" max="14" width="14" customWidth="1"/>` &&
-        `<col min="15" max="15" width="8"  customWidth="1"/>` &&
-        `<col min="16" max="16" width="10" customWidth="1"/>` &&
+        `<col min="15" max="15" width="10" customWidth="1"/>` &&
+        `<col min="16" max="16" width="36" customWidth="1"/>` &&
         `<col min="17" max="17" width="36" customWidth="1"/>` &&
-        `<col min="18" max="18" width="36" customWidth="1"/>` &&
-        `<col min="19" max="19" width="20" customWidth="1"/>` &&
-        `<col min="20" max="20" width="10" customWidth="1"/>` &&
-        `<col min="21" max="21" width="60" customWidth="1"/>` &&
+        `<col min="18" max="18" width="20" customWidth="1"/>` &&
+        `<col min="19" max="19" width="10" customWidth="1"/>` &&
+        `<col min="20" max="20" width="60" customWidth="1"/>` &&
+        `<col min="21" max="21" width="18" customWidth="1"/>` &&
         `<col min="22" max="22" width="18" customWidth="1"/>` &&
         `<col min="23" max="23" width="18" customWidth="1"/>` &&
-        `<col min="24" max="24" width="18" customWidth="1"/>` &&
-        `<col min="25" max="25" width="12" customWidth="1"/>` &&
-        `<col min="26" max="26" width="14" customWidth="1"/>` &&
+        `<col min="24" max="24" width="12" customWidth="1"/>` &&
+        `<col min="25" max="25" width="14" customWidth="1"/>` &&
+        `<col min="26" max="26" width="18" customWidth="1"/>` &&
         `<col min="27" max="27" width="18" customWidth="1"/>` &&
-        `<col min="28" max="28" width="18" customWidth="1"/>`.
-    DATA(lv_dyn_col) = 29.
-    DO lv_max_codes TIMES.
-      lv_cols &&= |<col min="{ lv_dyn_col }" max="{ lv_dyn_col }" width="18" customWidth="1"/>|.
-      lv_dyn_col += 1.
-    ENDDO.
+        `<col min="28" max="28" width="8"  customWidth="1"/>` &&
+        `<col min="29" max="29" width="25" customWidth="1"/>`.
 
     DATA lv_dv_entries TYPE string.
     DATA lv_dv_count   TYPE i.
@@ -565,15 +543,22 @@ CLASS zjmqmi_cl_icf_download IMPLEMENTATION.
       lv_dv_ridx += 1.
       IF <dv>-radii_codes_1 IS NOT INITIAL.
         lv_dv_entries &&=
-          |<dataValidation type="list" allowBlank="1" showDropDown="0" sqref="AA{ lv_dv_ridx }">| &&
+          |<dataValidation type="list" allowBlank="1" showDropDown="0" sqref="Z{ lv_dv_ridx }">| &&
           |<formula1>&quot;{ _esc( <dv>-radii_codes_1 ) }&quot;</formula1>| &&
           `</dataValidation>`.
         lv_dv_count += 1.
       ENDIF.
       IF <dv>-radii_codes_2 IS NOT INITIAL.
         lv_dv_entries &&=
-          |<dataValidation type="list" allowBlank="1" showDropDown="0" sqref="AB{ lv_dv_ridx }">| &&
+          |<dataValidation type="list" allowBlank="1" showDropDown="0" sqref="AA{ lv_dv_ridx }">| &&
           |<formula1>&quot;{ _esc( <dv>-radii_codes_2 ) }&quot;</formula1>| &&
+          `</dataValidation>`.
+        lv_dv_count += 1.
+      ENDIF.
+      IF <dv>-ql_dropdown IS NOT INITIAL.
+        lv_dv_entries &&=
+          |<dataValidation type="list" allowBlank="1" showDropDown="0" sqref="AC{ lv_dv_ridx }">| &&
+          |<formula1>&quot;{ _esc( <dv>-ql_dropdown ) }&quot;</formula1>| &&
           `</dataValidation>`.
         lv_dv_count += 1.
       ENDIF.

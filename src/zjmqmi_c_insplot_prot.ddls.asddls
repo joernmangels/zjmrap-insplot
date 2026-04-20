@@ -42,6 +42,18 @@ define view entity ZJMQMI_C_INSPLOT_PROT
          fieldGroup:      [{ qualifier: 'General',    position: 45, label: 'Characteristic' }] }
   InspectionCharacteristic,
 
+  @UI: { lineItem:   [{ qualifier: 'Protokoll', position: 47, label: 'Radii Code' }],
+         fieldGroup: [{ qualifier: 'General',   position: 47, label: 'Radii Code' }] }
+  RadiiCode,
+
+  @UI: { lineItem:   [{ qualifier: 'Protokoll', position: 48, label: 'Radii Code Group' }],
+         fieldGroup: [{ qualifier: 'General',   position: 48, label: 'Radii Code Group' }] }
+  RadiiCodeGroup,
+
+  @UI: { lineItem:   [{ qualifier: 'Protokoll', position: 49, label: 'Radii Description' }],
+         fieldGroup: [{ qualifier: 'General',   position: 49, label: 'Radii Description' }] }
+  RadiiKurztext,
+
   @UI: { lineItem:        [{ qualifier: 'Protokoll',  position: 50, label: 'Status',
                               criticality: 'Status',
                               criticalityRepresentation: #WITH_ICON }],

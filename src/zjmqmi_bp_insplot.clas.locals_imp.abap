@@ -71,10 +71,10 @@ CLASS lcl_handler DEFINITION INHERITING FROM cl_abap_behavior_handler.
       IMPORTING keys FOR ACTION InspLot~vormerkliste_leeren.
     METHODS vormerken_loeschen
       FOR MODIFY
-      IMPORTING keys FOR ACTION InspLot~vormerken_loeschen.
+      IMPORTING keys FOR ACTION InspLot~vormerken_loeschen RESULT result.
     METHODS vormerken
       FOR MODIFY
-      IMPORTING keys FOR ACTION InspLot~vormerken.
+      IMPORTING keys FOR ACTION InspLot~vormerken RESULT result.
     METHODS read_by_assoc_dltoken
       FOR READ
       IMPORTING keys_for_read FOR READ InspLot\_DlToken
@@ -315,6 +315,26 @@ CLASS lcl_handler IMPLEMENTATION.
       ls_token-created_at = lv_ts.
       INSERT zjmqmit_dl_token FROM ls_token.
     ENDLOOP.
+
+    SELECT *
+      FROM zjmqmi_i_insplot
+      FOR ALL ENTRIES IN @keys
+      WHERE InspectionLot = @keys-InspectionLot
+      INTO TABLE @DATA(lt_data).
+
+    LOOP AT keys ASSIGNING FIELD-SYMBOL(<key2>).
+      READ TABLE lt_data WITH KEY InspectionLot = <key2>-InspectionLot
+        ASSIGNING FIELD-SYMBOL(<row>).
+      IF sy-subrc = 0.
+        DATA(ls_param_vk) = CORRESPONDING zjmqmi_i_insplot( <row> ).
+        ls_param_vk-BatchDownloadUrl  = `/sap/bc/zjmqmi/download`.
+        ls_param_vk-BatchDownloadText = `DL Watchlist`.
+        ls_param_vk-BatchUploadUrl    = `/sap/bc/zjmqmi/upload`.
+        ls_param_vk-BatchUploadText   = `UL Watchlist`.
+        APPEND VALUE #( %tky = <key2>-%tky %param = ls_param_vk ) TO result.
+      ENDIF.
+    ENDLOOP.
+
     reported-insplot = VALUE #( BASE reported-insplot
       ( %tky = keys[ 1 ]-%tky
         %msg = new_message_with_text(
@@ -326,18 +346,7 @@ CLASS lcl_handler IMPLEMENTATION.
   ENDMETHOD.
 
   METHOD vormerkliste_leeren.
-    LOOP AT keys ASSIGNING FIELD-SYMBOL(<key>).
-      DELETE FROM zjmqmit_dl_token
-        WHERE prueflos = @<key>-InspectionLot.
-    ENDLOOP.
-    reported-insplot = VALUE #( BASE reported-insplot
-      ( %tky = keys[ 1 ]-%tky
-        %msg = new_message_with_text(
-                 severity = if_abap_behv_message=>severity-success
-                 text     = condense( TEXT-002 )
-               )
-      )
-    ).
+    DELETE FROM zjmqmit_dl_token WHERE prueflos IS NOT INITIAL.
   ENDMETHOD.
 
   METHOD vormerken_loeschen.
@@ -346,6 +355,24 @@ CLASS lcl_handler IMPLEMENTATION.
         WHERE prueflos   = @<key>-InspectionLot
           AND created_by = @sy-uname.
     ENDLOOP.
+
+    SELECT *
+      FROM zjmqmi_i_insplot
+      FOR ALL ENTRIES IN @keys
+      WHERE InspectionLot = @keys-InspectionLot
+      INTO TABLE @DATA(lt_data).
+
+    LOOP AT keys ASSIGNING FIELD-SYMBOL(<key2>).
+      READ TABLE lt_data WITH KEY InspectionLot = <key2>-InspectionLot
+        ASSIGNING FIELD-SYMBOL(<row>).
+      IF sy-subrc = 0.
+        APPEND VALUE #(
+          %tky   = <key2>-%tky
+          %param = CORRESPONDING zjmqmi_i_insplot( <row> )
+        ) TO result.
+      ENDIF.
+    ENDLOOP.
+
     IF keys IS NOT INITIAL.
       reported-insplot = VALUE #( BASE reported-insplot
         ( %tky = keys[ 1 ]-%tky

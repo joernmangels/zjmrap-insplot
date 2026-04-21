@@ -8,7 +8,7 @@
   typeNamePlural: 'Inspection Lots',
   title:          { type: #STANDARD, value: 'InspectionLot' },
   description:    { type: #STANDARD, value: 'InspectionLotText' }
-}
+}   
 
 define root view entity ZJMQMI_C_INSPLOT
   provider contract transactional_query
@@ -35,13 +35,16 @@ define root view entity ZJMQMI_C_INSPLOT
                             label: 'Add to Watchlist', position: 185 },
                           { type: #FOR_ACTION, dataAction: 'vormerken_loeschen',
                             label: 'Remove from Watchlist', position: 186 },
+                          { type: #FOR_ACTION, dataAction: 'vormerkliste_leeren',
+                            label: 'VML delete', position: 187,
+                            invocationGrouping: #CHANGE_SET },
                           { type: #FOR_ACTION, dataAction: 'zuruecksetzen',
                             label: 'Reset', position: 190 }],
          identification: [{ position: 10 },
                           { type: #FOR_ACTION, dataAction: 'vormerken',
                             label: 'Add to Watchlist', position: 15 },
-                          { type: #FOR_ACTION, dataAction: 'vormerkliste_leeren',
-                            label: 'Clear Watchlist', position: 20 },
+                          { type: #FOR_ACTION, dataAction: 'vormerken_loeschen',
+                            label: 'Remove from Watchlist', position: 16 },
                           { type: #FOR_ACTION, dataAction: 'zuruecksetzen',
                             label: 'Reset', position: 25 }],
          selectionField: [{ position: 10 }],
@@ -60,6 +63,14 @@ define root view entity ZJMQMI_C_INSPLOT
 
   @UI.hidden: true
   StatusCriticality,
+
+  @UI.lineItem: [{ position: 12, label: 'Vorgemerkt',
+                   criticality: 'IsVorgemerktCrit',
+                   criticalityRepresentation: #WITH_ICON }]
+  IsVorgemerkt,
+
+  @UI.hidden: true
+  IsVorgemerktCrit,
 
   @UI: { lineItem:       [{ position: 20, label: 'Plant' }],
          selectionField: [{ position: 20 }],
@@ -95,23 +106,29 @@ define root view entity ZJMQMI_C_INSPLOT
   @OData.property.name: 'InspLotType'
   InspectionLotType,
 
+  @UI.hidden: true
+  DownloadUrl,
+
   @UI: { lineItem:    [{ position: 72, label: 'Download', type: #WITH_URL,
                          url: 'DownloadUrl', iconUrl: 'sap-icon://download' }],
          fieldGroup: [{ qualifier: 'DlUlStatus', position: 5, label: 'Download',
                         type: #WITH_URL, url: 'DownloadUrl', iconUrl: 'sap-icon://download' }] }
-  DownloadUrl,
+  DownloadText,
+
+  @UI.hidden: true
+  UploadUrl,
 
   @UI: { lineItem:    [{ position: 73, label: 'Upload', type: #WITH_URL,
                          url: 'UploadUrl', iconUrl: 'sap-icon://upload' }],
          fieldGroup: [{ qualifier: 'DlUlStatus', position: 6, label: 'Upload',
                         type: #WITH_URL, url: 'UploadUrl', iconUrl: 'sap-icon://upload' }] }
-  UploadUrl,
+  UploadText,
 
-  @UI.lineItem: [{ position: 74, label: 'Watchlist Download', type: #WITH_URL,
+  @UI.lineItem: [{ position: 74, label: 'DL Vormerkliste', type: #WITH_URL,
                    url: 'BatchDownloadUrl', iconUrl: 'sap-icon://download-from-cloud' }]
   BatchDownloadText,
 
-  @UI.lineItem: [{ position: 75, label: 'Watchlist Upload', type: #WITH_URL,
+  @UI.lineItem: [{ position: 75, label: 'UL Vormerkliste', type: #WITH_URL,
                    url: 'BatchUploadUrl', iconUrl: 'sap-icon://upload-to-cloud' }]
   BatchUploadText,
 

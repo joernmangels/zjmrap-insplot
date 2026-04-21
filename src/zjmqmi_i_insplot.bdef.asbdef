@@ -6,9 +6,9 @@ define behavior for ZJMQMI_I_INSPLOT alias InspLot
   field ( readonly ) InspectionLot;
   action  download            parameter ZJMQMI_A_DOWNLOAD_PARAM result [1] ZJMQMI_A_DL_RESULT;
   static action uploadResults parameter ZJMQMI_A_UPLOAD;
-  action  vormerken;
-  action  vormerken_loeschen;
-  action  vormerkliste_leeren;
+  action  vormerken          result [1] $self;
+  action  vormerken_loeschen result [1] $self;
+  static action vormerkliste_leeren parameter ZJMQMI_A_VML_CONFIRM;
   action  zuruecksetzen       parameter ZJMQMI_A_RESET_CONFIRM;
   association _ProtEintrag;
   association _Merkmale;

@@ -161,11 +161,18 @@ CLASS zjmqmi_cl_icf_download IMPLEMENTATION.
 
   METHOD _download_batch.
     SELECT prueflos FROM zjmqmit_dl_token
-      WHERE created_by = @sy-uname
       ORDER BY prueflos
       INTO TABLE @DATA(lt_lots).
     IF lt_lots IS INITIAL.
-      server->response->set_status( code = 404 reason = |{ TEXT-028 }| ).
+      server->response->set_header_field( name = `Content-Type` value = `text/html; charset=utf-8` ).
+      server->response->set_cdata(
+        `<html><body style="font-family:Arial,sans-serif;padding:2rem">` &&
+        |<h2>{ TEXT-031 }</h2>| &&
+        |<p>{ TEXT-032 }</p>| &&
+        `<button onclick="history.back()" style="padding:.5rem 1.5rem;font-size:1rem;cursor:pointer">` &&
+        |&larr; { TEXT-033 }</button>| &&
+        `</body></html>` ).
+      server->response->set_status( code = 200 reason = `OK` ).
       RETURN.
     ENDIF.
 
@@ -179,7 +186,7 @@ CLASS zjmqmi_cl_icf_download IMPLEMENTATION.
         last_dl_at = lv_ts
         last_dl_by = sy-uname ) ).
     ENDLOOP.
-    DELETE FROM zjmqmit_dl_token WHERE created_by = @sy-uname.
+    DELETE FROM zjmqmit_dl_token WHERE prueflos IN ( SELECT prueflos FROM @lt_lots AS l ).
     COMMIT WORK.
 
     _send_xlsx( server  = server

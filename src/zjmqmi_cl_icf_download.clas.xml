@@ -192,6 +192,24 @@
      <ENTRY>Radien 2</ENTRY>
      <LENGTH>17</LENGTH>
     </item>
+    <item>
+     <ID>I</ID>
+     <KEY>031</KEY>
+     <ENTRY>Keine Prüflose vorgemerkt</ENTRY>
+     <LENGTH>62</LENGTH>
+    </item>
+    <item>
+     <ID>I</ID>
+     <KEY>032</KEY>
+     <ENTRY>Bitte zuerst Prüflose ueber &quot;Vormerken&quot; zur Vormerkliste hinzufuegen.</ENTRY>
+     <LENGTH>132</LENGTH>
+    </item>
+    <item>
+     <ID>I</ID>
+     <KEY>033</KEY>
+     <ENTRY>Zurück</ENTRY>
+     <LENGTH>14</LENGTH>
+    </item>
    </TPOOL>
    <I18N_TPOOL>
     <item>
@@ -376,6 +394,24 @@
        <KEY>030</KEY>
        <ENTRY>Radii 2</ENTRY>
        <LENGTH>17</LENGTH>
+      </item>
+      <item>
+       <ID>I</ID>
+       <KEY>031</KEY>
+       <ENTRY>No Inspection Lots in Watchlist</ENTRY>
+       <LENGTH>62</LENGTH>
+      </item>
+      <item>
+       <ID>I</ID>
+       <KEY>032</KEY>
+       <ENTRY>Please add inspection lots to the watchlist via &quot;Add to Watchlist&quot; first.</ENTRY>
+       <LENGTH>132</LENGTH>
+      </item>
+      <item>
+       <ID>I</ID>
+       <KEY>033</KEY>
+       <ENTRY>Back</ENTRY>
+       <LENGTH>14</LENGTH>
       </item>
      </TEXTPOOL>
     </item>

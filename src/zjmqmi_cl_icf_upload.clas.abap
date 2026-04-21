@@ -62,7 +62,6 @@ CLASS zjmqmi_cl_icf_upload IMPLEMENTATION.
       INSERT CONV qals-prueflos( condense( iv_lot_str ) ) INTO TABLE lt_filter.
     ELSE.
       SELECT prueflos FROM zjmqmit_dl_token
-        WHERE created_by = @sy-uname
         ORDER BY prueflos
         INTO TABLE @lt_filter.
       IF lt_filter IS INITIAL.
@@ -80,10 +79,17 @@ CLASS zjmqmi_cl_icf_upload IMPLEMENTATION.
       iv_overwrite   = lv_overwrite
     ).
 
-    IF iv_lot_str IS INITIAL.
-      DELETE FROM zjmqmit_dl_token WHERE created_by = @sy-uname.
-      COMMIT WORK.
-    ENDIF.
+    COMMIT WORK.
+
+    LOOP AT lt_filter ASSIGNING FIELD-SYMBOL(<lot>).
+      SELECT SINGLE last_ul_status FROM zjmqmit_status
+        WHERE prueflos = @<lot>
+        INTO @DATA(lv_ul_status).
+      IF sy-subrc = 0 AND lv_ul_status = 'S'.
+        DELETE FROM zjmqmit_dl_token WHERE prueflos = @<lot>.
+      ENDIF.
+    ENDLOOP.
+    COMMIT WORK.
 
     server->response->set_content_type( `text/plain; charset=utf-8` ).
     server->response->set_cdata( lv_msg ).

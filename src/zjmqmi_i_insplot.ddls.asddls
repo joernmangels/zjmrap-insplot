@@ -13,6 +13,9 @@ define root view entity ZJMQMI_I_INSPLOT
     and _StatusDD.ddlanguage = $session.system_language
   left outer join ZJMQMI_I_INSPLOT_TOKEN_FLAG as _Flag
     on _Flag.prueflos = il.InspectionLot
+  left outer join tadir as _Sysid
+    on  _Sysid.pgmid  = 'HEAD'
+    and _Sysid.object = 'SYST'
   composition [0..*] of ZJMQMI_I_INSPLOT_PROT  as _ProtEintrag
   composition [0..*] of ZJMQMI_I_INSPLOT_CHAR  as _Merkmale
   composition [0..*] of ZJMQMI_I_INSPLOT_TOKEN as _DlToken
@@ -47,27 +50,54 @@ define root view entity ZJMQMI_I_INSPLOT
       _Stat.last_ul_at              as LastUploadAt,
       _Stat.last_ul_by              as LastUploadBy,
 
-      concat( '/sap/bc/zjmqmi/download?lot=',
-              il.InspectionLot )    as DownloadUrl,
+      concat(
+        case when _Sysid.srcsystem = 'VID'
+             then cast( '/sap/bc/zjmqmi/download?lot=' as abap.char( 100 ) )
+             when _Sysid.srcsystem = 'VIP'
+             then cast( '/sap/bc/zjmqmi/download?lot=' as abap.char( 100 ) )
+//             else cast( '/sap/bc/zjmqmi/download?lot=' as abap.char( 100 ) )
+        end,
+        il.InspectionLot
+      )                             as DownloadUrl,
 
-      cast( 'Download PL' as abap.char(20) ) as DownloadText,
+      cast( 'Download PL' as abap.char( 20 ) ) as DownloadText,
 
-      concat( '/sap/bc/zjmqmi/upload?lot=',
-              il.InspectionLot )    as UploadUrl,
+      concat(
+        case when _Sysid.srcsystem = 'VID'
+             then cast( '/sap/bc/zjmqmi/upload?lot=' as abap.char( 100 ) )
+             when _Sysid.srcsystem = 'VIP'
+             then cast( '/sap/bc/zjmqmi/upload?lot=' as abap.char( 100 ) )
+//             else cast( '/sap/bc/zjmqmi/upload?lot=' as abap.char( 100 ) )
+        end,
+        il.InspectionLot
+      )                             as UploadUrl,
 
-      cast( 'Upload PL' as abap.char(20) )   as UploadText,
+      cast( 'Upload PL' as abap.char( 20 ) )   as UploadText,
 
       case when _Flag.prueflos is not null
            then cast( 3 as abap.int1 )
            else cast( 0 as abap.int1 )
-      end                                                as IsVorgemerktCrit,
+      end                                       as IsVorgemerktCrit,
 
-      cast( '' as abap.char(1) )                         as IsVorgemerkt,
+      cast( '' as abap.char( 1 ) )              as IsVorgemerkt,
 
-      cast( '/sap/bc/zjmqmi/download' as abap.char(200) ) as BatchDownloadUrl,
-      cast( 'DL Vormerkliste'         as abap.char(50) )  as BatchDownloadText,
-      cast( '/sap/bc/zjmqmi/upload'  as abap.char(200) ) as BatchUploadUrl,
-      cast( 'UL Vormerkliste'         as abap.char(50) )  as BatchUploadText,
+      case when _Sysid.srcsystem = 'VID'
+           then cast( '/sap/bc/zjmqmi/download' as abap.char( 200 ) )
+           when _Sysid.srcsystem = 'VIP'
+           then cast( '/sap/bc/zjmqmi/download' as abap.char( 200 ) )
+//           else cast( '/sap/bc/zjmqmi/download' as abap.char( 200 ) )
+      end                                       as BatchDownloadUrl,
+
+      cast( 'DL Vormerkliste' as abap.char( 50 ) ) as BatchDownloadText,
+
+      case when _Sysid.srcsystem = 'VID'
+           then cast( '/sap/bc/zjmqmi/upload' as abap.char( 200 ) )
+           when _Sysid.srcsystem = 'VIP'
+           then cast( '/sap/bc/zjmqmi/upload' as abap.char( 200 ) )
+//           else cast( '/sap/bc/zjmqmi/upload' as abap.char( 200 ) )
+      end                                       as BatchUploadUrl,
+
+      cast( 'UL Vormerkliste' as abap.char( 50 ) ) as BatchUploadText,
 
       _ProtEintrag,
       _Merkmale,

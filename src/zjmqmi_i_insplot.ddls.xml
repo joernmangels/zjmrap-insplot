@@ -4,6 +4,7 @@
   <asx:values>
    <DDLS>
     <DDLNAME>ZJMQMI_I_INSPLOT</DDLNAME>
+    <DDLANGUAGE>D</DDLANGUAGE>
     <SOURCE_TYPE>W</SOURCE_TYPE>
    </DDLS>
   </asx:values>

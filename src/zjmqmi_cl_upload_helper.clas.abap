@@ -855,13 +855,22 @@ CLASS zjmqmi_cl_upload_helper IMPLEMENTATION.
     CHECK sy-subrc = 0
       AND ls_qamv-katalgart2 = `E`
       AND ls_qamv-auswmenge2 IS NOT INITIAL.
-    SELECT SINGLE code, codegruppe, kurztext
+    SELECT qpct~code, qpct~codegruppe, qpct~kurztext
       FROM qpct
-      WHERE katalogart = @ls_qamv-katalgart2
-        AND codegruppe = @ls_qamv-auswmenge2
-        AND sprache    = @sy-langu
-        AND kurztext   = @iv_kurztext
-      INTO @DATA(ls_pct).
+      INNER JOIN qpcd
+        ON  qpcd~katalogart = qpct~katalogart
+        AND qpcd~codegruppe = qpct~codegruppe
+        AND qpcd~code       = qpct~code
+      WHERE qpct~katalogart = @ls_qamv-katalgart2
+        AND qpct~codegruppe = @ls_qamv-auswmenge2
+        AND qpct~sprache    = @sy-langu
+        AND qpct~kurztext   = @iv_kurztext
+        AND qpcd~inaktiv    = @abap_false
+        AND qpcd~gueltigab  <= @sy-datum
+      ORDER BY qpcd~gueltigab DESCENDING
+      INTO @DATA(ls_pct)
+      UP TO 1 ROWS.
+    ENDSELECT.
     CHECK sy-subrc = 0.
     rs_code-code       = ls_pct-code.
     rs_code-codegruppe = ls_pct-codegruppe.

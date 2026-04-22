@@ -250,12 +250,18 @@ CLASS zjmqmi_cl_icf_download IMPLEMENTATION.
       AND ls_q-katalgart2 = 'E'
       AND ls_q-auswmenge2 = 'QM'.
 
-    SELECT code, kurztext
+    SELECT qpct~code, qpct~kurztext
       FROM qpct
-      WHERE katalogart = @ls_q-katalgart2
-        AND codegruppe = @ls_q-auswmenge2
-        AND sprache    = @sy-langu
-      ORDER BY code ASCENDING
+      INNER JOIN qpcd
+        ON  qpcd~katalogart = qpct~katalogart
+        AND qpcd~codegruppe = qpct~codegruppe
+        AND qpcd~code       = qpct~code
+      WHERE qpct~katalogart = @ls_q-katalgart2
+        AND qpct~codegruppe = @ls_q-auswmenge2
+        AND qpct~sprache    = @sy-langu
+        AND qpcd~inaktiv    = @abap_false
+        AND qpcd~gueltigab  <= @sy-datum
+      ORDER BY qpct~code ASCENDING
       INTO TABLE @DATA(lt_texts).
 
     LOOP AT lt_texts INTO DATA(ls_t).

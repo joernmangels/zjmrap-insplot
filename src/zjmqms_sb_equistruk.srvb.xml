@@ -4,8 +4,9 @@
   <asx:values>
    <SRVB>
     <METADATA>
-     <NAME>ZJMQMI_SB_INSPLOT</NAME>
+     <NAME>ZJMQMS_SB_EQUISTRUK</NAME>
      <TYPE>SRVB/SVB</TYPE>
+     <DESCRIPTION>Service-Binding ZJMQMS_SD_EQUISTRUK</DESCRIPTION>
      <LINKS>
       <item>
        <HREF>versions</HREF>
@@ -13,13 +14,13 @@
        <TITLE>Historic versions</TITLE>
       </item>
       <item>
-       <HREF>/sap/bc/adt/repository/informationsystem/abaplanguageversions?uri=%2Fsap%2Fbc%2Fadt%2Fbusinessservices%2Fbindings%2Fzjmqmi_sb_insplot</HREF>
+       <HREF>/sap/bc/adt/repository/informationsystem/abaplanguageversions?uri=%2Fsap%2Fbc%2Fadt%2Fbusinessservices%2Fbindings%2Fzjmqms_sb_equistruk</HREF>
        <REL>http://www.sap.com/adt/relations/informationsystem/abaplanguageversions</REL>
        <TYPE>application/vnd.sap.adt.nameditems.v1+xml</TYPE>
        <TITLE>Allowed ABAP language versions</TITLE>
       </item>
       <item>
-       <HREF>/sap/bc/adt/businessservices/odatav4/ZJMQMI_SB_INSPLOT</HREF>
+       <HREF>/sap/bc/adt/businessservices/odatav4/ZJMQMS_SB_EQUISTRUK</HREF>
        <REL>http://www.sap.com/categories/odatav4</REL>
        <TYPE>application/vnd.sap.adt.businessservices.odatav4.v1+xml</TYPE>
        <TITLE>ODATAV4</TITLE>
@@ -49,32 +50,32 @@
        <TITLE>PublicationState</TITLE>
       </item>
       <item>
-       <HREF>./zjmqmi_sb_insplot</HREF>
+       <HREF>./zjmqms_sb_equistruk</HREF>
        <REL>http://www.sap.com/adt/relations/source</REL>
        <TYPE>text/html</TYPE>
        <TITLE>Landing Page (HTML)</TITLE>
       </item>
      </LINKS>
      <RESPONSIBLE>VM_MANGELS</RESPONSIBLE>
-     <MASTER_LANGUAGE>EN</MASTER_LANGUAGE>
+     <MASTER_LANGUAGE>DE</MASTER_LANGUAGE>
     </METADATA>
     <CONTENT>
      <BIND_TYPE_IMPL>
-      <NAME>ZJMQMI_SB_INSPLOT</NAME>
+      <NAME>ZJMQMS_SB_EQUISTRUK</NAME>
      </BIND_TYPE_IMPL>
      <BIND_TYPE>ODATA</BIND_TYPE>
      <BIND_TYPE_VERSION>V4</BIND_TYPE_VERSION>
      <SERVICES>
       <item>
-       <SERVICE_NAME>ZJMQMI_SB_INSPLOT</SERVICE_NAME>
+       <SERVICE_NAME>ZJMQMS_SD_EQUISTRUK</SERVICE_NAME>
        <SERVICE_CONTENT>
         <item>
          <SERVICE_VERSION>0001</SERVICE_VERSION>
          <RELEASE_STATE>NOT_RELEASED</RELEASE_STATE>
          <SRVD_REF>
-          <URI>/sap/bc/adt/ddic/srvd/sources/zjmqmi_sd_insplot</URI>
+          <URI>/sap/bc/adt/ddic/srvd/sources/zjmqms_sd_equistruk</URI>
           <TYPE>SRVD/SRV</TYPE>
-          <NAME>ZJMQMI_SD_INSPLOT</NAME>
+          <NAME>ZJMQMS_SD_EQUISTRUK</NAME>
          </SRVD_REF>
          <BIND_TYPE_DATA>
           <CONTENT>

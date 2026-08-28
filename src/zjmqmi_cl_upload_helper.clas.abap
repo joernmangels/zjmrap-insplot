@@ -16,11 +16,10 @@ CLASS zjmqmi_cl_upload_helper DEFINITION
              vorgangsnummer TYPE c LENGTH 4,
              quanqual       TYPE c LENGTH 2,
              merkmalsnummer TYPE c LENGTH 4,
-             messwert       TYPE string,
-             ql_kurztext    TYPE string,
-             excel_row      TYPE i,
-             radii_1        TYPE string,
-             radii_2        TYPE string,
+             messwert        TYPE string,
+             ql_kurztext     TYPE string,
+             excel_row       TYPE i,
+             radii_kurztexts TYPE STANDARD TABLE OF string WITH EMPTY KEY,
            END OF ty_upload_row.
     TYPES ty_upload_rows TYPE STANDARD TABLE OF ty_upload_row WITH EMPTY KEY.
     TYPES: BEGIN OF ty_up_code,
@@ -49,6 +48,11 @@ CLASS zjmqmi_cl_upload_helper DEFINITION
            END OF ty_bapi_input.
     TYPES ty_return_tab TYPE TABLE OF bapiret2 WITH EMPTY KEY.
     TYPES ty_ul_status  TYPE c LENGTH 1.
+    TYPES ty_int_set    TYPE STANDARD TABLE OF i WITH EMPTY KEY.
+
+    METHODS _get_marked_styles
+      IMPORTING iv_styles_xml    TYPE string
+      RETURNING VALUE(rt_marked) TYPE ty_int_set.
 
     METHODS _col_letter_to_idx
       IMPORTING iv_col        TYPE string
@@ -252,27 +256,35 @@ CLASS zjmqmi_cl_upload_helper IMPLEMENTATION.
 
 
   METHOD _build_bapi_input.
-    DATA lv_steuerkz TYPE qamv-steuerkz.
-    DATA ls_qmkst    TYPE qmkst.
+    DATA lv_steuerkz    TYPE qamv-steuerkz.
+    DATA ls_qmkst       TYPE qmkst.
     FIELD-SYMBOLS <fs_qmkst> TYPE qmkst.
 
-    DATA lv_radii_kurztext TYPE string.
-    DATA ls_radii_code     TYPE ty_up_code.
+    DATA lt_radii_codes TYPE STANDARD TABLE OF ty_up_code WITH EMPTY KEY.
+    DATA ls_radii_code  TYPE ty_up_code.
+    DATA lv_eval        TYPE char1.
+    DATA lv_ep_codegrp  TYPE qpac-codegruppe.
+    DATA lv_ep_code     TYPE qpac-code.
+    DATA ls_ep_code     TYPE ty_up_code.
+    DATA ls_oth_code    TYPE ty_up_code.
+    DATA lv_res_no_base TYPE numc4.
+    DATA lv_resn        TYPE numc4.
+    DATA lv_rix         TYPE i.
+
     LOOP AT it_rows INTO DATA(ls_row) WHERE vorgangsnummer = iv_vornr.
-      CLEAR: lv_radii_kurztext, ls_radii_code.
-      IF ls_row-radii_1 IS NOT INITIAL AND ls_row-radii_2 IS INITIAL.
-        lv_radii_kurztext = ls_row-radii_1.
-      ELSEIF ls_row-radii_2 IS NOT INITIAL AND ls_row-radii_1 IS INITIAL.
-        lv_radii_kurztext = ls_row-radii_2.
-      ENDIF.
-      IF lv_radii_kurztext IS NOT INITIAL.
+      " Markierte Radien dieser Zeile in Codes auflösen
+      CLEAR lt_radii_codes.
+      LOOP AT ls_row-radii_kurztexts INTO DATA(lv_rkt).
         ls_radii_code = _get_radii_code(
           iv_prueflos = iv_prueflos
           iv_vornr    = condense( ls_row-vorgangsnummer )
           iv_merknr   = condense( ls_row-merkmalsnummer )
-          iv_kurztext = lv_radii_kurztext
+          iv_kurztext = lv_rkt
         ).
-      ENDIF.
+        IF ls_radii_code-code IS NOT INITIAL.
+          APPEND ls_radii_code TO lt_radii_codes.
+        ENDIF.
+      ENDLOOP.
 
       lv_steuerkz = _get_qamv_steuerkz(
         iv_prueflos = iv_prueflos
@@ -284,42 +296,26 @@ CLASS zjmqmi_cl_upload_helper IMPLEMENTATION.
 
       CASE ls_qmkst-estukz.
         WHEN `+`.
-          DATA(lv_eval)     = _get_evaluation(
+          lv_eval = _get_evaluation(
             iv_prueflos = iv_prueflos
             iv_vornr    = condense( ls_row-vorgangsnummer )
             iv_merknr   = condense( ls_row-merkmalsnummer )
             iv_messwert = ls_row-messwert
           ).
-          DATA lv_ep_codegrp TYPE qpac-codegruppe.
-          DATA lv_ep_code    TYPE qpac-code.
-          CLEAR: lv_ep_codegrp, lv_ep_code.
-          DATA lv_res_no TYPE numc4.
+          CLEAR: lv_ep_codegrp, lv_ep_code, ls_ep_code.
           IF iv_overwrite = abap_true.
-            lv_res_no = 1.
+            lv_res_no_base = 1.
           ELSE.
-            lv_res_no = _get_next_res_no(
+            lv_res_no_base = _get_next_res_no(
               iv_prueflos = iv_prueflos
               iv_inspoper = CONV vornr( iv_vornr )
               iv_inspchar = CONV qamv-merknr( ls_row-merkmalsnummer )
             ).
           ENDIF.
-          IF ls_row-quanqual = `QN`.
-            INSERT VALUE bapi2045d4(
-              insplot    = iv_prueflos
-              inspoper   = iv_vornr
-              inspchar   = ls_row-merkmalsnummer
-              res_no     = lv_res_no
-              res_value  = ls_row-messwert
-              res_valuat = lv_eval
-              code_grp2  = ls_radii_code-codegruppe
-              code2      = ls_radii_code-code
-              inspector  = sy-uname
-              insp_date  = sy-datum
-              insp_time  = sy-uzeit
-              remark     = iv_filename
-            ) INTO TABLE rs_input-single_results.
-          ELSEIF ls_row-ql_kurztext IS NOT INITIAL.
-            DATA(ls_ep_code) = _get_ql_code(
+
+          " QL-Code einmal pro Zeile auflösen — gilt für alle Radien-Sätze gleichermaßen
+          IF ls_row-quanqual <> `QN` AND ls_row-ql_kurztext IS NOT INITIAL.
+            ls_ep_code = _get_ql_code(
               iv_prueflos = iv_prueflos
               iv_vornr    = condense( ls_row-vorgangsnummer )
               iv_merknr   = condense( ls_row-merkmalsnummer )
@@ -331,15 +327,32 @@ CLASS zjmqmi_cl_upload_helper IMPLEMENTATION.
               ENDIF.
               lv_ep_codegrp = ls_ep_code-codegruppe.
               lv_ep_code    = ls_ep_code-code.
+            ENDIF.
+          ENDIF.
+
+          " single_results: ein Satz pro markiertem Radius (bzw. einer ohne Radius, wenn keiner markiert)
+          IF lt_radii_codes IS INITIAL.
+            IF ls_row-quanqual = `QN`.
               INSERT VALUE bapi2045d4(
                 insplot    = iv_prueflos
                 inspoper   = iv_vornr
                 inspchar   = ls_row-merkmalsnummer
-                res_no     = lv_res_no
+                res_no     = lv_res_no_base
+                res_value  = ls_row-messwert
+                res_valuat = lv_eval
+                inspector  = sy-uname
+                insp_date  = sy-datum
+                insp_time  = sy-uzeit
+                remark     = iv_filename
+              ) INTO TABLE rs_input-single_results.
+            ELSEIF lv_ep_code IS NOT INITIAL.
+              INSERT VALUE bapi2045d4(
+                insplot    = iv_prueflos
+                inspoper   = iv_vornr
+                inspchar   = ls_row-merkmalsnummer
+                res_no     = lv_res_no_base
                 code_grp1  = lv_ep_codegrp
                 code1      = lv_ep_code
-                code_grp2  = ls_radii_code-codegruppe
-                code2      = ls_radii_code-code
                 res_valuat = lv_eval
                 inspector  = sy-uname
                 insp_date  = sy-datum
@@ -347,15 +360,53 @@ CLASS zjmqmi_cl_upload_helper IMPLEMENTATION.
                 remark     = iv_filename
               ) INTO TABLE rs_input-single_results.
             ENDIF.
+          ELSE.
+            lv_rix = 0.
+            LOOP AT lt_radii_codes INTO ls_radii_code.
+              lv_resn = lv_res_no_base + lv_rix.
+              IF ls_row-quanqual = `QN`.
+                INSERT VALUE bapi2045d4(
+                  insplot    = iv_prueflos
+                  inspoper   = iv_vornr
+                  inspchar   = ls_row-merkmalsnummer
+                  res_no     = lv_resn
+                  res_value  = ls_row-messwert
+                  res_valuat = lv_eval
+                  code_grp2  = ls_radii_code-codegruppe
+                  code2      = ls_radii_code-code
+                  inspector  = sy-uname
+                  insp_date  = sy-datum
+                  insp_time  = sy-uzeit
+                  remark     = iv_filename
+                ) INTO TABLE rs_input-single_results.
+              ELSEIF lv_ep_code IS NOT INITIAL.
+                INSERT VALUE bapi2045d4(
+                  insplot    = iv_prueflos
+                  inspoper   = iv_vornr
+                  inspchar   = ls_row-merkmalsnummer
+                  res_no     = lv_resn
+                  code_grp1  = lv_ep_codegrp
+                  code1      = lv_ep_code
+                  code_grp2  = ls_radii_code-codegruppe
+                  code2      = ls_radii_code-code
+                  res_valuat = lv_eval
+                  inspector  = sy-uname
+                  insp_date  = sy-datum
+                  insp_time  = sy-uzeit
+                  remark     = iv_filename
+                ) INTO TABLE rs_input-single_results.
+              ENDIF.
+              lv_rix += 1.
+            ENDLOOP.
           ENDIF.
+
+          " char_results: genau ein Merkmals-Abschluss-Satz; Radien stecken ausschließlich in single_results
           INSERT VALUE bapi2045d2(
             insplot          = iv_prueflos
             inspoper         = iv_vornr
             inspchar         = ls_row-merkmalsnummer
             code_grp1        = lv_ep_codegrp
             code1            = lv_ep_code
-            code_grp2        = ls_radii_code-codegruppe
-            code2            = ls_radii_code-code
             closed           = `X`
             evaluation       = lv_eval
             condition_active = `X`
@@ -373,7 +424,7 @@ CLASS zjmqmi_cl_upload_helper IMPLEMENTATION.
 
         WHEN OTHERS.
           IF ls_row-ql_kurztext IS NOT INITIAL.
-            DATA(ls_oth_code) = _get_ql_code(
+            ls_oth_code = _get_ql_code(
               iv_prueflos = iv_prueflos
               iv_vornr    = condense( ls_row-vorgangsnummer )
               iv_merknr   = condense( ls_row-merkmalsnummer )
@@ -384,8 +435,6 @@ CLASS zjmqmi_cl_upload_helper IMPLEMENTATION.
                 inspchar  = ls_row-merkmalsnummer
                 code_grp1 = ls_oth_code-codegruppe
                 code1     = ls_oth_code-code
-                code_grp2 = ls_radii_code-codegruppe
-                code2     = ls_radii_code-code
                 closed    = `X`
                 remark    = iv_filename
               ) INTO TABLE rs_input-char_results.
@@ -404,46 +453,51 @@ CLASS zjmqmi_cl_upload_helper IMPLEMENTATION.
     ENDIF.
     DATA(lv_has_error) = xsdbool( sy-subrc = 0 ).
 
-    DATA lv_ri_kt      TYPE string.
-    DATA ls_ri_code    TYPE ty_up_code.
+    DATA lt_ri_codes TYPE STANDARD TABLE OF ty_up_code WITH EMPTY KEY.
+    DATA ls_ri_code  TYPE ty_up_code.
     LOOP AT it_rows INTO DATA(ls_row) WHERE vorgangsnummer = iv_vornr.
-      CLEAR: lv_ri_kt, ls_ri_code.
-      IF ls_row-radii_1 IS NOT INITIAL AND ls_row-radii_2 IS INITIAL.
-        lv_ri_kt = ls_row-radii_1.
-      ELSEIF ls_row-radii_2 IS NOT INITIAL AND ls_row-radii_1 IS INITIAL.
-        lv_ri_kt = ls_row-radii_2.
-      ENDIF.
-      IF lv_ri_kt IS NOT INITIAL.
+      CLEAR lt_ri_codes.
+      LOOP AT ls_row-radii_kurztexts INTO DATA(lv_ri_kt).
         ls_ri_code = _get_radii_code(
           iv_prueflos = iv_prueflos
           iv_vornr    = condense( ls_row-vorgangsnummer )
           iv_merknr   = condense( ls_row-merkmalsnummer )
           iv_kurztext = lv_ri_kt
         ).
+        IF ls_ri_code-code IS NOT INITIAL.
+          APPEND ls_ri_code TO lt_ri_codes.
+        ENDIF.
+      ENDLOOP.
+      " Wenn keine Radien aufgelöst werden konnten, je Zeile einen Eintrag ohne Radius
+      IF lt_ri_codes IS INITIAL.
+        APPEND VALUE ty_up_code( ) TO lt_ri_codes.
       ENDIF.
-      DATA(ls_entry) = VALUE ty_prot_entry(
-        prueflos       = iv_prueflos
-        filename       = iv_filename
-        excel_row      = ls_row-excel_row
-        inspoper       = condense( ls_row-vorgangsnummer )
-        merknr         = condense( ls_row-merkmalsnummer )
-        radii_code     = ls_ri_code-code
-        radii_codegrp  = ls_ri_code-codegruppe
-        radii_kurztext = ls_ri_code-kurztext
-      ).
-      IF lv_has_error = abap_true.
-        ls_entry-status = `E`.
-        ls_entry-msg    = ls_error-message.
-        cv_ul_status    = `E`.
-      ELSE.
-        ls_entry-status = `S`.
-        ls_entry-msg    = _build_success_prot_msg(
-          iv_prueflos = iv_prueflos
-          iv_vornr    = iv_vornr
-          is_row      = ls_row
+
+      LOOP AT lt_ri_codes INTO DATA(ls_log_rc).
+        DATA(ls_entry) = VALUE ty_prot_entry(
+          prueflos       = iv_prueflos
+          filename       = iv_filename
+          excel_row      = ls_row-excel_row
+          inspoper       = condense( ls_row-vorgangsnummer )
+          merknr         = condense( ls_row-merkmalsnummer )
+          radii_code     = ls_log_rc-code
+          radii_codegrp  = ls_log_rc-codegruppe
+          radii_kurztext = ls_log_rc-kurztext
         ).
-      ENDIF.
-      _write_prot( ls_entry ).
+        IF lv_has_error = abap_true.
+          ls_entry-status = `E`.
+          ls_entry-msg    = ls_error-message.
+          cv_ul_status    = `E`.
+        ELSE.
+          ls_entry-status = `S`.
+          ls_entry-msg    = _build_success_prot_msg(
+            iv_prueflos = iv_prueflos
+            iv_vornr    = iv_vornr
+            is_row      = ls_row
+          ).
+        ENDIF.
+        _write_prot( ls_entry ).
+      ENDLOOP.
     ENDLOOP.
   ENDMETHOD.
 
@@ -472,6 +526,93 @@ CLASS zjmqmi_cl_upload_helper IMPLEMENTATION.
       ENDIF.
     ENDIF.
     rv_msg = TEXT-007.
+  ENDMETHOD.
+
+
+  METHOD _get_marked_styles.
+    " Wertet xl/styles.xml aus und liefert die cellXfs-Indizes (0-basiert),
+    " deren Füllung "markiert" ist = patternType solid mit einer Farbe ungleich weiß.
+    DATA lt_fill_marked TYPE STANDARD TABLE OF abap_bool WITH EMPTY KEY.
+    DATA lv_s    TYPE i.
+    DATA lv_e    TYPE i.
+    DATA lv_rest TYPE string.
+    DATA lv_fs   TYPE i.
+    DATA lv_fe   TYPE i.
+
+    " ── <fills> auswerten: je Fill ermitteln, ob markiert ──
+    FIND FIRST OCCURRENCE OF `<fills` IN iv_styles_xml MATCH OFFSET lv_s.
+    IF sy-subrc <> 0. RETURN. ENDIF.
+    FIND FIRST OCCURRENCE OF `</fills>` IN iv_styles_xml MATCH OFFSET lv_e.
+    IF sy-subrc <> 0. RETURN. ENDIF.
+    lv_rest = substring( val = iv_styles_xml off = lv_s len = lv_e - lv_s ).
+
+    FIND FIRST OCCURRENCE OF `<fill>` IN lv_rest MATCH OFFSET lv_fs.
+    WHILE sy-subrc = 0.
+      FIND FIRST OCCURRENCE OF `</fill>` IN lv_rest MATCH OFFSET lv_fe.
+      IF sy-subrc <> 0. EXIT. ENDIF.
+      DATA(lv_fill_xml) = substring( val = lv_rest off = lv_fs len = lv_fe - lv_fs ).
+
+      DATA lv_marked TYPE abap_bool.
+      lv_marked = abap_false.
+      DATA lv_pattern TYPE string.
+      FIND FIRST OCCURRENCE OF PCRE `patternType="([^"]*)"` IN lv_fill_xml SUBMATCHES lv_pattern.
+      IF sy-subrc = 0 AND lv_pattern = `solid`.
+        DATA lv_rgb TYPE string.
+        FIND FIRST OCCURRENCE OF PCRE `<fgColor[^>]*\brgb="([0-9A-Fa-f]+)"`
+          IN lv_fill_xml SUBMATCHES lv_rgb.
+        IF sy-subrc = 0.
+          lv_rgb = to_upper( lv_rgb ).
+          IF strlen( lv_rgb ) = 8.
+            lv_rgb = lv_rgb+2(6).
+          ENDIF.
+          IF lv_rgb <> `FFFFFF`.
+            lv_marked = abap_true.
+          ENDIF.
+        ELSE.
+          " solid ohne rgb (theme/indexed) → markiert, außer theme="1" (weißer Hintergrund)
+          DATA lv_theme TYPE string.
+          FIND FIRST OCCURRENCE OF PCRE `<fgColor[^>]*\btheme="(\d+)"`
+            IN lv_fill_xml SUBMATCHES lv_theme.
+          IF sy-subrc = 0 AND lv_theme = `1`.
+            lv_marked = abap_false.
+          ELSE.
+            lv_marked = abap_true.
+          ENDIF.
+        ENDIF.
+      ENDIF.
+      APPEND lv_marked TO lt_fill_marked.
+
+      lv_rest = substring( val = lv_rest off = lv_fe + 7 ).
+      FIND FIRST OCCURRENCE OF `<fill>` IN lv_rest MATCH OFFSET lv_fs.
+    ENDWHILE.
+
+    " ── <cellXfs> auswerten: xf-Index (0-basiert) → fillId → markiert? ──
+    FIND FIRST OCCURRENCE OF `<cellXfs` IN iv_styles_xml MATCH OFFSET lv_s.
+    IF sy-subrc <> 0. RETURN. ENDIF.
+    FIND FIRST OCCURRENCE OF `</cellXfs>` IN iv_styles_xml MATCH OFFSET lv_e.
+    IF sy-subrc <> 0. RETURN. ENDIF.
+    DATA(lv_xfs) = substring( val = iv_styles_xml off = lv_s len = lv_e - lv_s ).
+
+    DATA lv_xf_idx TYPE i.
+    DATA lv_xs     TYPE i.
+    DATA lv_xlen   TYPE i.
+    DATA lv_fillid TYPE string.
+    lv_xf_idx = 0.
+    FIND FIRST OCCURRENCE OF PCRE `<xf\b[^>]*>` IN lv_xfs MATCH OFFSET lv_xs MATCH LENGTH lv_xlen.
+    WHILE sy-subrc = 0.
+      DATA(lv_xf_tag) = substring( val = lv_xfs off = lv_xs len = lv_xlen ).
+      CLEAR lv_fillid.
+      FIND FIRST OCCURRENCE OF PCRE `\bfillId="(\d+)"` IN lv_xf_tag SUBMATCHES lv_fillid.
+      IF sy-subrc = 0.
+        READ TABLE lt_fill_marked INDEX CONV i( lv_fillid ) + 1 INTO DATA(lv_fm).
+        IF sy-subrc = 0 AND lv_fm = abap_true.
+          APPEND lv_xf_idx TO rt_marked.
+        ENDIF.
+      ENDIF.
+      lv_xf_idx += 1.
+      lv_xfs = substring( val = lv_xfs off = lv_xs + lv_xlen ).
+      FIND FIRST OCCURRENCE OF PCRE `<xf\b[^>]*>` IN lv_xfs MATCH OFFSET lv_xs MATCH LENGTH lv_xlen.
+    ENDWHILE.
   ENDMETHOD.
 
 
@@ -527,6 +668,8 @@ CLASS zjmqmi_cl_upload_helper IMPLEMENTATION.
     DATA lv_t_end     TYPE i.
     DATA lv_t_off     TYPE i.
     DATA lv_t_len     TYPE i.
+    DATA lv_cell_style TYPE string.
+    DATA lt_marked_styles TYPE ty_int_set.
 
     DATA(lo_zip) = NEW cl_abap_zip( ).
     lo_zip->load( EXPORTING zip = iv_xstring EXCEPTIONS others = 1 ).
@@ -568,6 +711,15 @@ CLASS zjmqmi_cl_upload_helper IMPLEMENTATION.
     lv_xml  = cl_abap_codepage=>convert_from( source = lv_xml_raw codepage = 'UTF-8' ).
     lv_rest = lv_xml.
 
+    " ── Styles laden für Markierungs-Erkennung (Füllfarbe ≠ weiß) ──────────
+    CLEAR lv_xml_raw.
+    lo_zip->get( EXPORTING name    = 'xl/styles.xml'
+                 IMPORTING content = lv_xml_raw EXCEPTIONS others = 1 ).
+    IF sy-subrc = 0.
+      lt_marked_styles = _get_marked_styles(
+        cl_abap_codepage=>convert_from( source = lv_xml_raw codepage = 'UTF-8' ) ).
+    ENDIF.
+
     FIND FIRST OCCURRENCE OF PCRE `<row[\s][^>]*r="(\d+)"` IN lv_rest SUBMATCHES lv_rownum.
     WHILE sy-subrc = 0.
       FIND FIRST OCCURRENCE OF `</row>` IN lv_rest MATCH OFFSET lv_end.
@@ -591,6 +743,9 @@ CLASS zjmqmi_cl_upload_helper IMPLEMENTATION.
 
         FIND FIRST OCCURRENCE OF PCRE `\bt="([^"]*)"` IN lv_cell_xml SUBMATCHES lv_cell_type.
         IF sy-subrc <> 0. CLEAR lv_cell_type. ENDIF.
+
+        FIND FIRST OCCURRENCE OF PCRE `\bs="(\d+)"` IN lv_cell_xml SUBMATCHES lv_cell_style.
+        IF sy-subrc <> 0. CLEAR lv_cell_style. ENDIF.
 
         CASE lv_cell_type.
           WHEN 's'.
@@ -632,16 +787,8 @@ CLASS zjmqmi_cl_upload_helper IMPLEMENTATION.
           WHEN 1.  ls_row-prueflosnummer = condense( lv_cell_val ).
           WHEN 10. ls_row-vorgangsnummer = condense( lv_cell_val ).
           WHEN 15. ls_row-merkmalsnummer = condense( lv_cell_val ).
-          WHEN 26.
-            IF condense( lv_cell_val ) <> ``.
-              ls_row-radii_1 = condense( lv_cell_val ).
-            ENDIF.
+          WHEN 26. ls_row-quanqual = condense( lv_cell_val ).
           WHEN 27.
-            IF condense( lv_cell_val ) <> ``.
-              ls_row-radii_2 = condense( lv_cell_val ).
-            ENDIF.
-          WHEN 28. ls_row-quanqual = condense( lv_cell_val ).
-          WHEN 29.
             IF condense( lv_cell_val ) <> ``.
               IF ls_row-quanqual = `QN`.
                 ls_row-messwert = condense( lv_cell_val ).
@@ -650,6 +797,13 @@ CLASS zjmqmi_cl_upload_helper IMPLEMENTATION.
               ENDIF.
             ENDIF.
           WHEN OTHERS.
+            " Radien = alle markierten Zellen (Füllfarbe ≠ weiß) ab Spalte AB (28)
+            IF lv_col_idx >= 28
+               AND condense( lv_cell_val ) <> ``
+               AND lv_cell_style IS NOT INITIAL
+               AND line_exists( lt_marked_styles[ table_line = CONV i( lv_cell_style ) ] ).
+              APPEND condense( lv_cell_val ) TO ls_row-radii_kurztexts.
+            ENDIF.
         ENDCASE.
 
         lv_cell_rest = substring( val = lv_cell_rest off = lv_c_end + 4 ).

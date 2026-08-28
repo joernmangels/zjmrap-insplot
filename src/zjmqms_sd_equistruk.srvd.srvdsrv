@@ -1,0 +1,5 @@
+@EndUserText.label: 'Service Definition Equi-Struktur'
+define service ZJMQMS_SD_EQUISTRUK {
+  expose ZJMQMS_C_EQUISTRUK   as EquiStruk;
+  expose ZJMQMS_I_MATERIAL_VH as MaterialVH;
+}

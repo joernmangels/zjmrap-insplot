@@ -1,9 +1,11 @@
-CLASS zjmqmi_cl_icf_download DEFINITION
-  PUBLIC FINAL CREATE PUBLIC.
+class ZJMQMI_CL_ICF_DOWNLOAD_1ST definition
+  public
+  final
+  create public .
 
-  PUBLIC SECTION.
-    INTERFACES if_http_extension.
+public section.
 
+  interfaces IF_HTTP_EXTENSION .
   PRIVATE SECTION.
     TYPES: BEGIN OF ty_code,
              code     TYPE qpct-code,
@@ -41,7 +43,8 @@ CLASS zjmqmi_cl_icf_download DEFINITION
              qc_department   TYPE c LENGTH 1,
              is_quantitative TYPE abap_bool,
              ql_dropdown     TYPE string,
-             radii_codes     TYPE ty_radii_codes,
+             radii_codes_1   TYPE string,
+             radii_codes_2   TYPE string,
            END OF ty_row.
     TYPES ty_data TYPE TABLE OF ty_row WITH EMPTY KEY.
 
@@ -128,9 +131,12 @@ CLASS zjmqmi_cl_icf_download DEFINITION
 
 ENDCLASS.
 
-CLASS zjmqmi_cl_icf_download IMPLEMENTATION.
 
-  METHOD if_http_extension~handle_request.
+
+CLASS ZJMQMI_CL_ICF_DOWNLOAD_1ST IMPLEMENTATION.
+
+
+  METHOD IF_HTTP_EXTENSION~HANDLE_REQUEST.
     DATA(lv_lot_str) = server->request->get_form_field( `lot` ).
     IF lv_lot_str IS NOT INITIAL.
       _download_single( server = server iv_lot_str = lv_lot_str ).
@@ -140,25 +146,20 @@ CLASS zjmqmi_cl_icf_download IMPLEMENTATION.
   ENDMETHOD.
 
 
-  METHOD _download_single.
-    DATA(lv_lot)  = CONV qals-prueflos( iv_lot_str ).
-    DATA(ls_hdr)  = _get_lot_header( lv_lot ).
-    DATA(lt_data) = _fill_data( ls_hdr ).
-
-    GET TIME STAMP FIELD DATA(lv_ts).
-    MODIFY zjmqmit_status FROM @( VALUE #(
-      prueflos   = lv_lot
-      last_dl_at = lv_ts
-      last_dl_by = sy-uname ) ).
-    COMMIT WORK.
-
-    _send_xlsx( server  = server
-                it_data = lt_data
-                iv_name = |{ condense( iv_lot_str ) }.xlsx| ).
+  METHOD _CELL.
+    CONSTANTS lc_alpha TYPE c LENGTH 26 VALUE 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.
+    DATA(lv_q) = ( iv_col - 1 ) DIV 26.
+    DATA(lv_r) = ( iv_col - 1 ) MOD 26.
+    DATA(lv_col_str) = CONV string( lc_alpha+lv_r(1) ).
+    IF lv_q > 0.
+      DATA(lv_q1) = lv_q - 1.
+      lv_col_str = lc_alpha+lv_q1(1) && lv_col_str.
+    ENDIF.
+    rv_xml = |<c r="{ lv_col_str }{ iv_row }" t="inlineStr"><is><t>{ _esc( iv_val ) }</t></is></c>|.
   ENDMETHOD.
 
 
-  METHOD _download_batch.
+  METHOD _DOWNLOAD_BATCH.
     SELECT prueflos FROM zjmqmit_dl_token
       ORDER BY prueflos
       INTO TABLE @DATA(lt_lots).
@@ -194,126 +195,34 @@ CLASS zjmqmi_cl_icf_download IMPLEMENTATION.
   ENDMETHOD.
 
 
-  METHOD _get_lot_header.
-    SELECT SINGLE
-        InspectionLot, BillOfOperationsGroup, BillOfOperationsVariant,
-        BillOfOperationsType, Supplier, PurchasingDocument,
-        PurchasingDocumentItem, Material
-      FROM I_InspectionLot
-      WHERE InspectionLot = @iv_lot
-      INTO @DATA(ls_il).
-    rs_hdr-inspectionlot           = ls_il-InspectionLot.
-    rs_hdr-billofoperationsgroup   = ls_il-BillOfOperationsGroup.
-    rs_hdr-billofoperationsvariant = ls_il-BillOfOperationsVariant.
-    rs_hdr-billofoperationstype    = ls_il-BillOfOperationsType.
-    rs_hdr-supplier                = ls_il-Supplier.
-    rs_hdr-purchasingdocument      = ls_il-PurchasingDocument.
-    rs_hdr-purchasingdocumentitem  = ls_il-PurchasingDocumentItem.
-    rs_hdr-material                = ls_il-Material.
+  METHOD _DOWNLOAD_SINGLE.
+    DATA(lv_lot)  = CONV qals-prueflos( iv_lot_str ).
+    DATA(ls_hdr)  = _get_lot_header( lv_lot ).
+    DATA(lt_data) = _fill_data( ls_hdr ).
+
+    GET TIME STAMP FIELD DATA(lv_ts).
+    MODIFY zjmqmit_status FROM @( VALUE #(
+      prueflos   = lv_lot
+      last_dl_at = lv_ts
+      last_dl_by = sy-uname ) ).
+    COMMIT WORK.
+
+    _send_xlsx( server  = server
+                it_data = lt_data
+                iv_name = |{ condense( iv_lot_str ) }.xlsx| ).
   ENDMETHOD.
 
 
-  METHOD _get_codes.
-    SELECT SINGLE katalgart1, auswmenge1, auswmgwrk1
-      FROM qamv
-      WHERE prueflos = @iv_prueflos
-        AND vorglfnr = @iv_vorglfnr
-        AND merknr   = @iv_merknr
-      INTO @DATA(ls_qamv).
-    CHECK sy-subrc = 0
-      AND ls_qamv-katalgart1 IS NOT INITIAL
-      AND ls_qamv-auswmenge1 IS NOT INITIAL.
-    SELECT qpac~code, qpct~kurztext
-      FROM qpac
-      INNER JOIN qpct ON  qpct~katalogart = qpac~katalogart
-                      AND qpct~codegruppe = qpac~codegruppe
-                      AND qpct~code       = qpac~code
-                      AND qpct~version    = `000001`
-                      AND qpct~sprache    = @sy-langu
-      WHERE qpac~katalogart = @ls_qamv-katalgart1
-        AND qpac~werks      = @ls_qamv-auswmgwrk1
-        AND qpac~auswahlmge = @ls_qamv-auswmenge1
-      ORDER BY qpac~code
-      INTO CORRESPONDING FIELDS OF TABLE @rt_codes.
+  METHOD _ESC.
+    rv_val = iv_val.
+    REPLACE ALL OCCURRENCES OF `&` IN rv_val WITH `&amp;`.
+    REPLACE ALL OCCURRENCES OF `<` IN rv_val WITH `&lt;`.
+    REPLACE ALL OCCURRENCES OF `>` IN rv_val WITH `&gt;`.
+    REPLACE ALL OCCURRENCES OF `"` IN rv_val WITH `&quot;`.
   ENDMETHOD.
 
 
-  METHOD _get_radii_codes.
-    SELECT SINGLE katalgart2, auswmenge2
-      FROM qamv
-      WHERE prueflos = @iv_prueflos
-        AND vorglfnr = @iv_vorglfnr
-        AND merknr   = @iv_merknr
-      INTO @DATA(ls_q).
-    CHECK sy-subrc = 0
-      AND ls_q-katalgart2 = 'E'
-      AND ls_q-auswmenge2 = 'QM'.
-
-    SELECT qpct~code, qpct~kurztext
-      FROM qpct
-      INNER JOIN qpcd
-        ON  qpcd~katalogart = qpct~katalogart
-        AND qpcd~codegruppe = qpct~codegruppe
-        AND qpcd~code       = qpct~code
-      WHERE qpct~katalogart = @ls_q-katalgart2
-        AND qpct~codegruppe = @ls_q-auswmenge2
-        AND qpct~sprache    = @sy-langu
-        AND qpcd~inaktiv    = @abap_false
-        AND qpcd~gueltigab  <= @sy-datum
-      ORDER BY qpct~code ASCENDING
-      INTO TABLE @DATA(lt_texts).
-
-    LOOP AT lt_texts INTO DATA(ls_t).
-      APPEND condense( ls_t-kurztext ) TO rt_codes.
-    ENDLOOP.
-  ENDMETHOD.
-
-
-  METHOD _get_longtext.
-    DATA: BEGIN OF ls_key,
-            mandt   TYPE sy-mandt,
-            werks   TYPE qamkr-qpmk_werks,
-            mkmnr   TYPE qamkr-verwmerkm,
-            version TYPE qamkr-mkversion,
-            sprache TYPE sy-langu,
-          END OF ls_key.
-
-    SELECT SINGLE qpmk_werks, verwmerkm, mkversion
-      FROM qamv
-      WHERE prueflos = @iv_prueflos
-        AND vorglfnr = @iv_vorglfnr
-        AND merknr   = @iv_merknr
-      INTO @DATA(ls_qamv).
-    CHECK sy-subrc = 0.
-
-    ls_key-mandt   = sy-mandt.
-    ls_key-werks   = ls_qamv-qpmk_werks.
-    ls_key-mkmnr   = ls_qamv-verwmerkm.
-    ls_key-version = ls_qamv-mkversion.
-    ls_key-sprache = sy-langu.
-
-    DATA lt_lines TYPE TABLE OF tline WITH EMPTY KEY.
-    DATA(lv_txt_name) = CONV tdobname( ls_key ).
-    CALL FUNCTION 'READ_TEXT'
-      EXPORTING
-        id       = 'QPMT'
-        language = sy-langu
-        name     = lv_txt_name
-        object   = 'QPMERKMAL '
-      TABLES
-        lines    = lt_lines
-      EXCEPTIONS
-        OTHERS   = 8.
-    CHECK sy-subrc = 0.
-
-    LOOP AT lt_lines INTO DATA(ls_line) WHERE tdline IS NOT INITIAL.
-      rv_text = rv_text && condense( ls_line-tdline ) && ` `.
-    ENDLOOP.
-    rv_text = condense( rv_text ).
-  ENDMETHOD.
-
-
-  METHOD _fill_data.
+  METHOD _FILL_DATA.
     DATA lt_char      TYPE ty_chars.
     DATA ls_row       TYPE ty_row.
     SELECT SINGLE ktext FROM plko
@@ -383,10 +292,22 @@ CLASS zjmqmi_cl_icf_download IMPLEMENTATION.
       IF ls_row-stammerkmal(2) = `RQ`.
         ls_row-qc_department = `X`.
       ENDIF.
-      ls_row-radii_codes = _get_radii_codes(
+      DATA(lt_radii) = _get_radii_codes(
         iv_prueflos = <c>-inspectionlot
         iv_vorglfnr = <c>-insplanoperationinternalid
         iv_merknr   = <c>-inspectioncharacteristic ).
+      DATA lv_radii_cnt TYPE i.
+      lv_radii_cnt = 0.
+      LOOP AT lt_radii INTO DATA(lv_rc).
+        lv_radii_cnt += 1.
+        IF lv_radii_cnt <= 25.
+          IF ls_row-radii_codes_1 IS NOT INITIAL. ls_row-radii_codes_1 &&= `,`. ENDIF.
+          ls_row-radii_codes_1 &&= lv_rc.
+        ELSE.
+          IF ls_row-radii_codes_2 IS NOT INITIAL. ls_row-radii_codes_2 &&= `,`. ENDIF.
+          ls_row-radii_codes_2 &&= lv_rc.
+        ENDIF.
+      ENDLOOP.
       IF <c>-inspspecisquantitative = `X`.
         ls_row-is_quantitative = abap_true.
         ls_row-sollwert_qn     = |{ <c>-inspspectargetvalue }|.
@@ -410,29 +331,126 @@ CLASS zjmqmi_cl_icf_download IMPLEMENTATION.
   ENDMETHOD.
 
 
-  METHOD _esc.
-    rv_val = iv_val.
-    REPLACE ALL OCCURRENCES OF `&` IN rv_val WITH `&amp;`.
-    REPLACE ALL OCCURRENCES OF `<` IN rv_val WITH `&lt;`.
-    REPLACE ALL OCCURRENCES OF `>` IN rv_val WITH `&gt;`.
-    REPLACE ALL OCCURRENCES OF `"` IN rv_val WITH `&quot;`.
+  METHOD _GET_CODES.
+    SELECT SINGLE katalgart1, auswmenge1, auswmgwrk1
+      FROM qamv
+      WHERE prueflos = @iv_prueflos
+        AND vorglfnr = @iv_vorglfnr
+        AND merknr   = @iv_merknr
+      INTO @DATA(ls_qamv).
+    CHECK sy-subrc = 0
+      AND ls_qamv-katalgart1 IS NOT INITIAL
+      AND ls_qamv-auswmenge1 IS NOT INITIAL.
+    SELECT qpac~code, qpct~kurztext
+      FROM qpac
+      INNER JOIN qpct ON  qpct~katalogart = qpac~katalogart
+                      AND qpct~codegruppe = qpac~codegruppe
+                      AND qpct~code       = qpac~code
+                      AND qpct~version    = `000001`
+                      AND qpct~sprache    = @sy-langu
+      WHERE qpac~katalogart = @ls_qamv-katalgart1
+        AND qpac~werks      = @ls_qamv-auswmgwrk1
+        AND qpac~auswahlmge = @ls_qamv-auswmenge1
+      ORDER BY qpac~code
+      INTO CORRESPONDING FIELDS OF TABLE @rt_codes.
   ENDMETHOD.
 
 
-  METHOD _cell.
-    CONSTANTS lc_alpha TYPE c LENGTH 26 VALUE 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.
-    DATA(lv_q) = ( iv_col - 1 ) DIV 26.
-    DATA(lv_r) = ( iv_col - 1 ) MOD 26.
-    DATA(lv_col_str) = CONV string( lc_alpha+lv_r(1) ).
-    IF lv_q > 0.
-      DATA(lv_q1) = lv_q - 1.
-      lv_col_str = lc_alpha+lv_q1(1) && lv_col_str.
-    ENDIF.
-    rv_xml = |<c r="{ lv_col_str }{ iv_row }" t="inlineStr"><is><t>{ _esc( iv_val ) }</t></is></c>|.
+  METHOD _GET_LONGTEXT.
+    DATA: BEGIN OF ls_key,
+            mandt   TYPE sy-mandt,
+            werks   TYPE qamkr-qpmk_werks,
+            mkmnr   TYPE qamkr-verwmerkm,
+            version TYPE qamkr-mkversion,
+            sprache TYPE sy-langu,
+          END OF ls_key.
+
+    SELECT SINGLE qpmk_werks, verwmerkm, mkversion
+      FROM qamv
+      WHERE prueflos = @iv_prueflos
+        AND vorglfnr = @iv_vorglfnr
+        AND merknr   = @iv_merknr
+      INTO @DATA(ls_qamv).
+    CHECK sy-subrc = 0.
+
+    ls_key-mandt   = sy-mandt.
+    ls_key-werks   = ls_qamv-qpmk_werks.
+    ls_key-mkmnr   = ls_qamv-verwmerkm.
+    ls_key-version = ls_qamv-mkversion.
+    ls_key-sprache = sy-langu.
+
+    DATA lt_lines TYPE TABLE OF tline WITH EMPTY KEY.
+    DATA(lv_txt_name) = CONV tdobname( ls_key ).
+    CALL FUNCTION 'READ_TEXT'
+      EXPORTING
+        id       = 'QPMT'
+        language = sy-langu
+        name     = lv_txt_name
+        object   = 'QPMERKMAL '
+      TABLES
+        lines    = lt_lines
+      EXCEPTIONS
+        OTHERS   = 8.
+    CHECK sy-subrc = 0.
+
+    LOOP AT lt_lines INTO DATA(ls_line) WHERE tdline IS NOT INITIAL.
+      rv_text = rv_text && condense( ls_line-tdline ) && ` `.
+    ENDLOOP.
+    rv_text = condense( rv_text ).
   ENDMETHOD.
 
 
-  METHOD _send_xlsx.
+  METHOD _GET_LOT_HEADER.
+    SELECT SINGLE
+        InspectionLot, BillOfOperationsGroup, BillOfOperationsVariant,
+        BillOfOperationsType, Supplier, PurchasingDocument,
+        PurchasingDocumentItem, Material
+      FROM I_InspectionLot
+      WHERE InspectionLot = @iv_lot
+      INTO @DATA(ls_il).
+    rs_hdr-inspectionlot           = ls_il-InspectionLot.
+    rs_hdr-billofoperationsgroup   = ls_il-BillOfOperationsGroup.
+    rs_hdr-billofoperationsvariant = ls_il-BillOfOperationsVariant.
+    rs_hdr-billofoperationstype    = ls_il-BillOfOperationsType.
+    rs_hdr-supplier                = ls_il-Supplier.
+    rs_hdr-purchasingdocument      = ls_il-PurchasingDocument.
+    rs_hdr-purchasingdocumentitem  = ls_il-PurchasingDocumentItem.
+    rs_hdr-material                = ls_il-Material.
+  ENDMETHOD.
+
+
+  METHOD _GET_RADII_CODES.
+    SELECT SINGLE katalgart2, auswmenge2
+      FROM qamv
+      WHERE prueflos = @iv_prueflos
+        AND vorglfnr = @iv_vorglfnr
+        AND merknr   = @iv_merknr
+      INTO @DATA(ls_q).
+    CHECK sy-subrc = 0
+      AND ls_q-katalgart2 = 'E'
+      AND ls_q-auswmenge2 = 'QM'.
+
+    SELECT qpct~code, qpct~kurztext
+      FROM qpct
+      INNER JOIN qpcd
+        ON  qpcd~katalogart = qpct~katalogart
+        AND qpcd~codegruppe = qpct~codegruppe
+        AND qpcd~code       = qpct~code
+      WHERE qpct~katalogart = @ls_q-katalgart2
+        AND qpct~codegruppe = @ls_q-auswmenge2
+        AND qpct~sprache    = @sy-langu
+        AND qpcd~inaktiv    = @abap_false
+        AND qpcd~gueltigab  <= @sy-datum
+      ORDER BY qpct~code ASCENDING
+      INTO TABLE @DATA(lt_texts).
+
+    LOOP AT lt_texts INTO DATA(ls_t).
+      APPEND condense( ls_t-kurztext ) TO rt_codes.
+    ENDLOOP.
+  ENDMETHOD.
+
+
+  METHOD _SEND_XLSX.
     " Header-Zeile (Zeile 1) — fixe Spalten 1-29
     DATA(lv_hdr) =
         _cell( iv_col = 1  iv_row = 1 iv_val = |{ TEXT-001 }| )
@@ -460,8 +478,10 @@ CLASS zjmqmi_cl_icf_download IMPLEMENTATION.
      && _cell( iv_col = 23 iv_row = 1 iv_val = |{ TEXT-024 }| )
      && _cell( iv_col = 24 iv_row = 1 iv_val = |{ TEXT-025 }| )
      && _cell( iv_col = 25 iv_row = 1 iv_val = |{ TEXT-026 }| )
-     && _cell( iv_col = 26 iv_row = 1 iv_val = |{ TEXT-015 }| )
-     && _cell( iv_col = 27 iv_row = 1 iv_val = |{ TEXT-027 }| ).
+     && _cell( iv_col = 26 iv_row = 1 iv_val = |{ TEXT-029 }| )
+     && _cell( iv_col = 27 iv_row = 1 iv_val = |{ TEXT-030 }| )
+     && _cell( iv_col = 28 iv_row = 1 iv_val = |{ TEXT-015 }| )
+     && _cell( iv_col = 29 iv_row = 1 iv_val = |{ TEXT-027 }| ).
     DATA(lv_rows) = |<row r="1">{ lv_hdr }</row>|.
 
     " Datenzeilen
@@ -495,14 +515,10 @@ CLASS zjmqmi_cl_icf_download IMPLEMENTATION.
         && _cell( iv_col = 23 iv_row = lv_ridx iv_val = |{ <d>-toleranz_un }|    )
         && _cell( iv_col = 24 iv_row = lv_ridx iv_val = |{ <d>-losgroesse }|     )
         && _cell( iv_col = 25 iv_row = lv_ridx iv_val = |{ <d>-qc_department }|  )
-        && _cell( iv_col = 26 iv_row = lv_ridx iv_val = |{ <d>-quanqual }|       )
-        && _cell( iv_col = 27 iv_row = lv_ridx iv_val = `` ).
-      DATA lv_radii_col TYPE i.
-      lv_radii_col = 28.
-      LOOP AT <d>-radii_codes INTO DATA(lv_radii_val).
-        lv_cells &&= _cell( iv_col = lv_radii_col iv_row = lv_ridx iv_val = lv_radii_val ).
-        lv_radii_col += 1.
-      ENDLOOP.
+        && _cell( iv_col = 26 iv_row = lv_ridx iv_val = `` )
+        && _cell( iv_col = 27 iv_row = lv_ridx iv_val = `` )
+        && _cell( iv_col = 28 iv_row = lv_ridx iv_val = |{ <d>-quanqual }|       )
+        && _cell( iv_col = 29 iv_row = lv_ridx iv_val = `` ).
       lv_rows &&= |<row r="{ lv_ridx }">{ lv_cells }</row>|.
     ENDLOOP.
 
@@ -533,17 +549,33 @@ CLASS zjmqmi_cl_icf_download IMPLEMENTATION.
         `<col min="23" max="23" width="18" customWidth="1"/>` &&
         `<col min="24" max="24" width="12" customWidth="1"/>` &&
         `<col min="25" max="25" width="14" customWidth="1"/>` &&
-        `<col min="26" max="26" width="8"  customWidth="1"/>` &&
-        `<col min="27" max="27" width="25" customWidth="1"/>`.
+        `<col min="26" max="26" width="18" customWidth="1"/>` &&
+        `<col min="27" max="27" width="18" customWidth="1"/>` &&
+        `<col min="28" max="28" width="8"  customWidth="1"/>` &&
+        `<col min="29" max="29" width="25" customWidth="1"/>`.
 
     DATA lv_dv_entries TYPE string.
     DATA lv_dv_count   TYPE i.
     DATA lv_dv_ridx    TYPE i VALUE 1.
     LOOP AT it_data ASSIGNING FIELD-SYMBOL(<dv>).
       lv_dv_ridx += 1.
-      IF <dv>-ql_dropdown IS NOT INITIAL.
+      IF <dv>-radii_codes_1 IS NOT INITIAL.
+        lv_dv_entries &&=
+          |<dataValidation type="list" allowBlank="1" showDropDown="0" sqref="Z{ lv_dv_ridx }">| &&
+          |<formula1>&quot;{ _esc( <dv>-radii_codes_1 ) }&quot;</formula1>| &&
+          `</dataValidation>`.
+        lv_dv_count += 1.
+      ENDIF.
+      IF <dv>-radii_codes_2 IS NOT INITIAL.
         lv_dv_entries &&=
           |<dataValidation type="list" allowBlank="1" showDropDown="0" sqref="AA{ lv_dv_ridx }">| &&
+          |<formula1>&quot;{ _esc( <dv>-radii_codes_2 ) }&quot;</formula1>| &&
+          `</dataValidation>`.
+        lv_dv_count += 1.
+      ENDIF.
+      IF <dv>-ql_dropdown IS NOT INITIAL.
+        lv_dv_entries &&=
+          |<dataValidation type="list" allowBlank="1" showDropDown="0" sqref="AC{ lv_dv_ridx }">| &&
           |<formula1>&quot;{ _esc( <dv>-ql_dropdown ) }&quot;</formula1>| &&
           `</dataValidation>`.
         lv_dv_count += 1.
@@ -619,6 +651,4 @@ CLASS zjmqmi_cl_icf_download IMPLEMENTATION.
     server->response->set_data( lv_content ).
     server->response->set_status( code = 200 reason = `OK` ).
   ENDMETHOD.
-
 ENDCLASS.
-

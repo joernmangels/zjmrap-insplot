@@ -1,0 +1,17 @@
+projection;
+strict ( 2 );
+
+define behavior for ZJMQMS_C_EQUISTRUK alias EquiStruk
+{
+  use create;
+  use update;
+  use delete;
+
+  use action einruecken;
+  use action ausruecken;
+  use action setEbene;
+
+  use action nachOben;
+  use action nachUnten;
+  use action setPosition;
+}

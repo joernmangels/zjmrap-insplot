@@ -1,0 +1,63 @@
+managed implementation in class zjmqms_bp_equistruk unique;
+strict ( 2 );
+
+define behavior for ZJMQMS_I_EQUISTRUK alias EquiStruk
+persistent table zjmqm_qm009_q
+lock master
+authorization master ( global )
+early numbering
+{
+  create;
+  update;
+  delete;
+
+  field ( readonly ) Ebene, Material;
+  field ( readonly : update ) SeqNumber;
+  field ( mandatory : create, readonly : update ) PlanType, PlanGroup, GroupCounter, NodeCounter;
+
+  action einruecken;
+  action ausruecken;
+  action setEbene parameter ZJMQMS_A_SET_EBENE;
+
+  action nachOben;
+  action nachUnten;
+  action setPosition parameter ZJMQMS_A_SET_POSITION;
+
+  determination normalizeMaterial on modify { create;
+                                              field MatEbene00, MatEbene01, MatEbene02, MatEbene03,
+                                                    MatEbene04, MatEbene05, MatEbene06, MatEbene07,
+                                                    MatEbene08, MatEbene09, MatEbene10, MatEbene11,
+                                                    MatEbene12, MatEbene13, MatEbene14, MatEbene15,
+                                                    MatEbene16, MatEbene17, MatEbene18, MatEbene19; }
+
+  validation validateRow on save { create; update; }
+
+  mapping for zjmqm_qm009_q
+    {
+      PlanType     = plnty;
+      PlanGroup    = plnnr;
+      GroupCounter = plnal;
+      NodeCounter  = zaehl;
+      SeqNumber    = lfdnr;
+      MatEbene00   = mat_ebene0;
+      MatEbene01   = mat_ebene1;
+      MatEbene02   = mat_ebene2;
+      MatEbene03   = mat_ebene3;
+      MatEbene04   = mat_ebene4;
+      MatEbene05   = mat_ebene5;
+      MatEbene06   = mat_ebene6;
+      MatEbene07   = mat_ebene7;
+      MatEbene08   = mat_ebene8;
+      MatEbene09   = mat_ebene9;
+      MatEbene10   = mat_ebene10;
+      MatEbene11   = mat_ebene11;
+      MatEbene12   = mat_ebene12;
+      MatEbene13   = mat_ebene13;
+      MatEbene14   = mat_ebene14;
+      MatEbene15   = mat_ebene15;
+      MatEbene16   = mat_ebene16;
+      MatEbene17   = mat_ebene17;
+      MatEbene18   = mat_ebene18;
+      MatEbene19   = mat_ebene19;
+    }
+}

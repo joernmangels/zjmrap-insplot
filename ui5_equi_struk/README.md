@@ -412,9 +412,36 @@ für Sonderfälle bestehen.
 ## Deployment ins ABAP-System
 
 ```bash
-npm run deploy-test   # Trockenlauf
-npm run deploy        # BSP ZJMQMS_EQUISTR, Paket ZJMRAP_INSPLOT, <transportauftrag>
+cp ui5-deploy.yaml.example ui5-deploy.yaml   # einmalig, dann ausfuellen
+npm run deploy-test                          # Trockenlauf
+npm run deploy                               # BSP ZJMQMS_EQUISTR
 ```
+
+Das Deployment bringt **nur das Frontend**. Die ABAP-Objekte müssen im
+Zielsystem vorher vorhanden sein — per Transport oder abapGit-Pull aus diesem
+Repository.
+
+### UI5 wird absolut geladen
+
+`webapp/index.html` bootstrappt UI5 über
+
+```
+/sap/public/bc/ui5_ui5/resources/sap-ui-core.js
+```
+
+und **nicht** relativ über `resources/sap-ui-core.js`. Der relative Pfad
+funktioniert nur lokal: als BSP unter `/sap/bc/ui5_ui5/sap/<name>/` würde daraus
+`/sap/bc/ui5_ui5/sap/<name>/resources/…` und damit ein 404 — die deployte App
+ließe sich nicht direkt aufrufen.
+
+Der absolute Pfad wird lokal ebenfalls über den `/sap`-Proxy bedient und liefert
+immer die UI5-Version des jeweiligen Systems. Im Entwicklungssystem sind das
+1.136.21; alle von der App genutzten Module (`sap/ui/core/Messaging`,
+`sap/m/MessagePopover`, `sap/f/DynamicPage`, `sap/ui/core/CustomData`) sind dort
+vorhanden.
+
+Beim Aufruf über die Fiori-Launchpad spielt `index.html` ohnehin keine Rolle —
+dort lädt die Shell direkt `Component.js`.
 
 ## Bekannte Randbedingungen
 

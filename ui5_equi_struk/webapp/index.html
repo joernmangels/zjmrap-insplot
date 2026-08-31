@@ -5,9 +5,19 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Equi-Struktur zum Prüfplan</title>
 
+    <!--
+        UI5 absolut vom ABAP-Server laden, nicht relativ.
+
+        Relativ ("resources/sap-ui-core.js") funktioniert nur lokal ueber den
+        Proxy. Als BSP unter /sap/bc/ui5_ui5/sap/<name>/ wuerde daraus
+        /sap/bc/ui5_ui5/sap/<name>/resources/... und damit ein 404.
+
+        Der absolute Pfad wird lokal ebenfalls ueber den /sap-Proxy bedient und
+        liefert immer die UI5-Version des jeweiligen Systems.
+    -->
     <script
         id="sap-ui-bootstrap"
-        src="resources/sap-ui-core.js"
+        src="/sap/public/bc/ui5_ui5/resources/sap-ui-core.js"
         data-sap-ui-theme="sap_horizon"
         data-sap-ui-resourceroots='{"de.enercon.qm009.equistruk": "./"}'
         data-sap-ui-oninit="module:sap/ui/core/ComponentSupport"

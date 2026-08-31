@@ -62,11 +62,13 @@ im README. Über die ADT-Schreib-API nicht anlegbar — DDLX wird nicht unterst�
 Wirkt nur auf die ADT-Service-Vorschau und Fiori Elements, **nicht** auf die
 freestyle-App.
 
-### 2 · Frontend nach GitHub
+### 2 · Frontend nach GitHub — erledigt, aber Nachzügler offen
 
-Vorbereitet, aber noch nicht ausgeführt. Entschieden war:
-**dasselbe Repo wie die ABAP-Objekte** (dort schon per abapGit), Frontend als
+Der erste Push ist erfolgt: **dasselbe Repo wie die ABAP-Objekte**, Frontend im
 Unterordner **`ui5_equi_struk/`**, Repo **öffentlich**.
+
+Der Namensraum `de.enercon.qm009.equistruk` war zu diesem Zeitpunkt bereits
+umgestellt und ist mit im ersten Commit.
 
 Aus der abapGit-Ablage im System ausgelesen:
 
@@ -85,11 +87,36 @@ Deshalb bereits erledigt:
 Noch zu tun: Repo klonen, `ui5_equi_struk/` befüllen, committen, pushen.
 Befehlsfolge stand im Chat.
 
-### 3 · Namensraum ggf. neutralisieren
+### 3 · Launchpad-Konfiguration im Zielsystem
 
-`de.enercon.qm009.equistruk` steht in Manifest, Component, Views und Controller.
-Bei einem öffentlichen Repo sichtbar. Umbenennung wäre eine Änderung an sechs
-Stellen — bewusst offen gelassen.
+Vorbereitet, aber im System **nicht durchgeführt** — über die ADT-Schnittstelle
+nicht erreichbar. Anleitung mit allen konkreten Werten:
+[LAUNCHPAD.md](LAUNCHPAD.md).
+
+Die App bringt den Inbound `ZEquiStruktur-maintain` im Manifest bereits mit;
+Semantisches Objekt, Ziel-Mapping, Kachel, Gruppe und Rollenzuordnung sind
+Handarbeit im Zielsystem.
+
+### 4 · Backend ins Zielsystem bringen
+
+Das Deployment bringt nur das Frontend. Im Kundensystem müssen vorher existieren:
+Tabelle `ZJMQM_QM009_Q` samt Datenelementen, alle `ZJMQMS_*`-Objekte und das
+publizierte Service Binding. Weg: Transport oder abapGit-Pull aus demselben
+Repository.
+
+Danach `ui5-deploy.yaml` aus der Vorlage erzeugen (Host, Mandant, Paket,
+Transport des Zielsystems) und `npm run deploy-test`, dann `npm run deploy`.
+
+---
+
+## Erledigt seit der letzten Sicherung
+
+- Namensraum von `de.varelmann.qm.equistruk` auf **`de.enercon.qm009.equistruk`**
+  umgestellt, 13 Stellen in 6 Dateien, gegen den laufenden Server verifiziert.
+- `index.html` lädt UI5 jetzt über `/sap/public/bc/ui5_ui5/resources/sap-ui-core.js`
+  statt relativ — der relative Pfad hätte im deployten BSP einen 404 ergeben.
+  Der ABAP-Server liefert UI5 **1.136.21**, alle benötigten Module vorhanden.
+- Launchpad-Inbound `ZEquiStruktur-maintain` im Manifest, Kacheltexte in i18n.
 
 ---
 

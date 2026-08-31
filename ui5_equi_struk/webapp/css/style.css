@@ -1,0 +1,189 @@
+/* Einrueckung: reiner Abstand, 2rem je Ebene (formatter.indent) */
+.equiStrukIndent {
+    flex: 0 0 auto;
+}
+
+/* Baum-Konnektor vor der Materialnummer.
+   Senkrechte kommt von der uebergeordneten Zeile herunter, die
+   Waagerechte mit Pfeilspitze zeigt auf das Material dieser Zeile.
+   Alle Linien nutzen currentColor - die Farbe setzt weiter unten
+   die Regel je data-ebene. */
+.equiStrukConnector {
+    flex: 0 0 auto;
+    width: 1.1rem;
+    height: 0.85rem;
+    align-self: flex-start;
+    margin-top: 0.1rem;
+    /* Abstand zur Materialnummer; die Pfeilspitze ragt 6px nach rechts
+       heraus, der sichtbare Abstand ist also rund 0.8rem. */
+    margin-right: 1.2rem;
+    border-left: 2px solid;
+    border-bottom: 2px solid;
+    border-bottom-left-radius: 3px;
+    position: relative;
+    box-sizing: border-box;
+}
+
+/* Ebene 0 hat kein uebergeordnetes Material, also auch keinen Konnektor.
+   Bewusst ueber data-ebene statt ueber die visible-Bindung: das greift
+   unabhaengig davon, wie die Ausdrucksbindung den Wert 0 auswertet. */
+.equiStrukMaterial[data-ebene="0"] .equiStrukConnector,
+.equiStrukMaterial[data-ebene="0"] .equiStrukIndent {
+    display: none;
+}
+
+/* Pfeilspitze am rechten Ende der Waagerechten */
+.equiStrukConnector::after {
+    content: "";
+    position: absolute;
+    right: -6px;
+    bottom: -4px;
+    width: 0;
+    height: 0;
+    border-top: 4px solid transparent;
+    border-bottom: 4px solid transparent;
+    border-left: 6px solid;
+}
+
+.equiStrukLevel {
+    min-width: 2rem;
+}
+
+/* Aktionsspalte ruhig halten */
+.equiStrukActions .sapMBtn {
+    margin-left: 0.125rem;
+}
+
+/* ---------------------------------------------------------------- */
+/* Farbe je Ebene                                                    */
+/*                                                                   */
+/* Werte aus den SAP-Chart-Farben (library-parameters.json des        */
+/* Horizon-Themes). Das Theme liefert in UI5 1.120 KEINE CSS-         */
+/* Variablen, die Hex-Werte sind also der wirksame Teil; var() steht  */
+/* davor, damit kuenftige Themes mit Variablen uebernehmen.           */
+/*                                                                   */
+/* 11 Farben fuer 20 Ebenen - ab Ebene 11 wiederholen sie sich.       */
+/* class ist in XML-Views nicht bindbar, deshalb schreibt CustomData  */
+/* writeToDom das Attribut data-ebene an das Element.                 */
+/* ---------------------------------------------------------------- */
+
+.equiStrukMaterial[data-ebene="0"] .sapMObjectIdentifierTitle,
+.equiStrukMaterial[data-ebene="0"] .sapMObjectIdentifierTitle > *,
+.equiStrukMaterial[data-ebene="0"] .equiStrukConnector {
+    color: var(--sapChart_OrderedColor_1, #0070f2);
+}
+
+.equiStrukMaterial[data-ebene="1"] .sapMObjectIdentifierTitle,
+.equiStrukMaterial[data-ebene="1"] .sapMObjectIdentifierTitle > *,
+.equiStrukMaterial[data-ebene="1"] .equiStrukConnector {
+    color: var(--sapChart_OrderedColor_2, #c87b00);
+}
+
+.equiStrukMaterial[data-ebene="2"] .sapMObjectIdentifierTitle,
+.equiStrukMaterial[data-ebene="2"] .sapMObjectIdentifierTitle > *,
+.equiStrukMaterial[data-ebene="2"] .equiStrukConnector {
+    color: var(--sapChart_OrderedColor_3, #75980b);
+}
+
+.equiStrukMaterial[data-ebene="3"] .sapMObjectIdentifierTitle,
+.equiStrukMaterial[data-ebene="3"] .sapMObjectIdentifierTitle > *,
+.equiStrukMaterial[data-ebene="3"] .equiStrukConnector {
+    color: var(--sapChart_OrderedColor_4, #df1278);
+}
+
+.equiStrukMaterial[data-ebene="4"] .sapMObjectIdentifierTitle,
+.equiStrukMaterial[data-ebene="4"] .sapMObjectIdentifierTitle > *,
+.equiStrukMaterial[data-ebene="4"] .equiStrukConnector {
+    color: var(--sapChart_OrderedColor_5, #8b47d7);
+}
+
+.equiStrukMaterial[data-ebene="5"] .sapMObjectIdentifierTitle,
+.equiStrukMaterial[data-ebene="5"] .sapMObjectIdentifierTitle > *,
+.equiStrukMaterial[data-ebene="5"] .equiStrukConnector {
+    color: var(--sapChart_OrderedColor_6, #049f9a);
+}
+
+.equiStrukMaterial[data-ebene="6"] .sapMObjectIdentifierTitle,
+.equiStrukMaterial[data-ebene="6"] .sapMObjectIdentifierTitle > *,
+.equiStrukMaterial[data-ebene="6"] .equiStrukConnector {
+    color: var(--sapChart_OrderedColor_7, #3c8cdd);
+}
+
+.equiStrukMaterial[data-ebene="7"] .sapMObjectIdentifierTitle,
+.equiStrukMaterial[data-ebene="7"] .sapMObjectIdentifierTitle > *,
+.equiStrukMaterial[data-ebene="7"] .equiStrukConnector {
+    color: var(--sapChart_OrderedColor_8, #cc00dc);
+}
+
+.equiStrukMaterial[data-ebene="8"] .sapMObjectIdentifierTitle,
+.equiStrukMaterial[data-ebene="8"] .sapMObjectIdentifierTitle > *,
+.equiStrukMaterial[data-ebene="8"] .equiStrukConnector {
+    color: var(--sapChart_OrderedColor_9, #798c77);
+}
+
+.equiStrukMaterial[data-ebene="9"] .sapMObjectIdentifierTitle,
+.equiStrukMaterial[data-ebene="9"] .sapMObjectIdentifierTitle > *,
+.equiStrukMaterial[data-ebene="9"] .equiStrukConnector {
+    color: var(--sapChart_OrderedColor_10, #da6c6c);
+}
+
+.equiStrukMaterial[data-ebene="10"] .sapMObjectIdentifierTitle,
+.equiStrukMaterial[data-ebene="10"] .sapMObjectIdentifierTitle > *,
+.equiStrukMaterial[data-ebene="10"] .equiStrukConnector {
+    color: var(--sapChart_OrderedColor_11, #5d36ff);
+}
+
+.equiStrukMaterial[data-ebene="11"] .sapMObjectIdentifierTitle,
+.equiStrukMaterial[data-ebene="11"] .sapMObjectIdentifierTitle > *,
+.equiStrukMaterial[data-ebene="11"] .equiStrukConnector {
+    color: var(--sapChart_OrderedColor_1, #0070f2);
+}
+
+.equiStrukMaterial[data-ebene="12"] .sapMObjectIdentifierTitle,
+.equiStrukMaterial[data-ebene="12"] .sapMObjectIdentifierTitle > *,
+.equiStrukMaterial[data-ebene="12"] .equiStrukConnector {
+    color: var(--sapChart_OrderedColor_2, #c87b00);
+}
+
+.equiStrukMaterial[data-ebene="13"] .sapMObjectIdentifierTitle,
+.equiStrukMaterial[data-ebene="13"] .sapMObjectIdentifierTitle > *,
+.equiStrukMaterial[data-ebene="13"] .equiStrukConnector {
+    color: var(--sapChart_OrderedColor_3, #75980b);
+}
+
+.equiStrukMaterial[data-ebene="14"] .sapMObjectIdentifierTitle,
+.equiStrukMaterial[data-ebene="14"] .sapMObjectIdentifierTitle > *,
+.equiStrukMaterial[data-ebene="14"] .equiStrukConnector {
+    color: var(--sapChart_OrderedColor_4, #df1278);
+}
+
+.equiStrukMaterial[data-ebene="15"] .sapMObjectIdentifierTitle,
+.equiStrukMaterial[data-ebene="15"] .sapMObjectIdentifierTitle > *,
+.equiStrukMaterial[data-ebene="15"] .equiStrukConnector {
+    color: var(--sapChart_OrderedColor_5, #8b47d7);
+}
+
+.equiStrukMaterial[data-ebene="16"] .sapMObjectIdentifierTitle,
+.equiStrukMaterial[data-ebene="16"] .sapMObjectIdentifierTitle > *,
+.equiStrukMaterial[data-ebene="16"] .equiStrukConnector {
+    color: var(--sapChart_OrderedColor_6, #049f9a);
+}
+
+.equiStrukMaterial[data-ebene="17"] .sapMObjectIdentifierTitle,
+.equiStrukMaterial[data-ebene="17"] .sapMObjectIdentifierTitle > *,
+.equiStrukMaterial[data-ebene="17"] .equiStrukConnector {
+    color: var(--sapChart_OrderedColor_7, #3c8cdd);
+}
+
+.equiStrukMaterial[data-ebene="18"] .sapMObjectIdentifierTitle,
+.equiStrukMaterial[data-ebene="18"] .sapMObjectIdentifierTitle > *,
+.equiStrukMaterial[data-ebene="18"] .equiStrukConnector {
+    color: var(--sapChart_OrderedColor_8, #cc00dc);
+}
+
+.equiStrukMaterial[data-ebene="19"] .sapMObjectIdentifierTitle,
+.equiStrukMaterial[data-ebene="19"] .sapMObjectIdentifierTitle > *,
+.equiStrukMaterial[data-ebene="19"] .equiStrukConnector {
+    color: var(--sapChart_OrderedColor_9, #798c77);
+}
+

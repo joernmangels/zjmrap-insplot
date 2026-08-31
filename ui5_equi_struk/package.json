@@ -1,0 +1,21 @@
+{
+  "name": "zjmqms-equistruk",
+  "version": "1.0.0",
+  "description": "Fiori-Pflegetool fuer die Equi-Struktur-Vorgabe zum QM-Pruefplan (ZJMQM_QM009_Q)",
+  "private": true,
+  "devDependencies": {
+    "@ui5/cli": "^4.0.9",
+    "@sap/ux-ui5-tooling": "^1.16.4"
+  },
+  "scripts": {
+    "start": "ui5 serve --open index.html",
+    "build": "ui5 build --clean-dest",
+    "deploy": "npm run build && fiori deploy --config ui5-deploy.yaml",
+    "deploy-test": "npm run build && fiori deploy --config ui5-deploy.yaml --testMode true"
+  },
+  "ui5": {
+    "dependencies": [
+      "@sap/ux-ui5-tooling"
+    ]
+  }
+}

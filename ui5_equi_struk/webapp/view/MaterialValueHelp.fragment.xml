@@ -1,0 +1,31 @@
+<core:FragmentDefinition
+    xmlns="sap.m"
+    xmlns:core="sap.ui.core">
+
+    <SelectDialog
+        id="materialValueHelp"
+        title="{i18n>vhMaterialTitle}"
+        searchPlaceholder="{i18n>vhMaterialSearch}"
+        growing="true"
+        growingThreshold="50"
+        rememberSelections="false"
+        search=".onMaterialSearch"
+        liveChange=".onMaterialSearch"
+        confirm=".onMaterialConfirm"
+        cancel=".onMaterialCancel"
+        items="{
+            path: '/MaterialVH',
+            suspended: true,
+            parameters: {
+                $orderby: 'Material'
+            }
+        }">
+
+        <StandardListItem
+            title="{path: 'Material', formatter: '.formatter.matnrOut'}"
+            description="{MaterialName}"
+            info="{MaterialType}"/>
+
+    </SelectDialog>
+
+</core:FragmentDefinition>

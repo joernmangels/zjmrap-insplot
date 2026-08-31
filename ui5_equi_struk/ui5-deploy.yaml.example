@@ -1,0 +1,29 @@
+# Vorlage - vor dem Deployment nach ui5-deploy.yaml kopieren und ausfuellen.
+# ui5-deploy.yaml selbst ist bewusst nicht im Repository: sie enthaelt
+# Hostname, Mandanten und Transportauftrag des konkreten Systems.
+
+specVersion: "3.1"
+metadata:
+  name: zjmqms-equistruk
+type: application
+
+builder:
+  resources:
+    excludes:
+      - "/test/**"
+      - "/localService/**"
+  customTasks:
+    - name: deploy-to-abap
+      afterTask: generateCachebusterInfo
+      configuration:
+        target:
+          url: https://<host>:<port>
+          client: "<mandant>"
+        app:
+          # BSP-Anwendungsname: maximal 15 Zeichen
+          name: ZJMQMS_EQUISTR
+          description: Equi-Struktur zum Pruefplan
+          package: ZJMRAP_INSPLOT
+          transport: <transportauftrag>
+        exclude:
+          - /test/

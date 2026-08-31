@@ -1,0 +1,25 @@
+# Vorlage - vor dem ersten Start nach ui5.yaml kopieren und ausfuellen.
+# ui5.yaml selbst ist bewusst nicht im Repository: sie enthaelt Hostname
+# und Mandanten des konkreten Systems.
+
+specVersion: "3.1"
+metadata:
+  name: zjmqms-equistruk
+type: application
+
+server:
+  customMiddleware:
+    # Leitet /sap/... an das ABAP-System weiter und laedt UI5 vom CDN.
+    - name: fiori-tools-proxy
+      afterMiddleware: compression
+      configuration:
+        ignoreCertErrors: true
+        backend:
+          - path: /sap
+            url: https://<host>:<port>
+            client: "<mandant>"
+        ui5:
+          path:
+            - /resources
+            - /test-resources
+          url: https://ui5.sap.com

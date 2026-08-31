@@ -1,0 +1,115 @@
+@Metadata.layer: #CORE
+
+@UI: {
+  headerInfo: {
+    typeName:       'Strukturzeile',
+    typeNamePlural: 'Strukturzeilen',
+    title:          { type: #STANDARD, value: 'Material' },
+    description:    { type: #STANDARD, value: 'Ebene' }
+  }
+}
+
+annotate entity ZJMQMS_C_EQUISTRUK with
+{
+  @UI.facet: [ { id:       'Zeile',
+                 purpose:  #STANDARD,
+                 type:     #IDENTIFICATION_REFERENCE,
+                 label:    'Strukturzeile',
+                 position: 10 } ]
+
+  //
+  // Selektionsfelder der Filterleiste
+  //
+  @UI.selectionField: [{ position: 10 }]
+  PlanType;
+
+  @UI.selectionField: [{ position: 20 }]
+  PlanGroup;
+
+  @UI.selectionField: [{ position: 30 }]
+  GroupCounter;
+
+  @UI.selectionField: [{ position: 40 }]
+  NodeCounter;
+
+  //
+  // Spalten der Liste
+  //
+  @UI.lineItem:       [{ position: 10 }]
+  @UI.identification: [{ position: 10 }]
+  SeqNumber;
+
+  @UI.lineItem:       [{ position: 20 }]
+  @UI.identification: [{ position: 20 }]
+  Ebene;
+
+  @UI.lineItem:       [{ position: 30 }]
+  @UI.identification: [{ position: 30 }]
+  Material;
+
+  //
+  // Physische Ebenenfelder ausblenden.
+  // Sie bleiben im Service, weil die Anwendung hineinschreibt - das
+  // Verschieben zwischen Ebenen ist genau ein Leeren des alten und ein
+  // Setzen des neuen Feldes. Angezeigt werden sie nie.
+  //
+  @UI.hidden: true
+  MatEbene00;
+
+  @UI.hidden: true
+  MatEbene01;
+
+  @UI.hidden: true
+  MatEbene02;
+
+  @UI.hidden: true
+  MatEbene03;
+
+  @UI.hidden: true
+  MatEbene04;
+
+  @UI.hidden: true
+  MatEbene05;
+
+  @UI.hidden: true
+  MatEbene06;
+
+  @UI.hidden: true
+  MatEbene07;
+
+  @UI.hidden: true
+  MatEbene08;
+
+  @UI.hidden: true
+  MatEbene09;
+
+  @UI.hidden: true
+  MatEbene10;
+
+  @UI.hidden: true
+  MatEbene11;
+
+  @UI.hidden: true
+  MatEbene12;
+
+  @UI.hidden: true
+  MatEbene13;
+
+  @UI.hidden: true
+  MatEbene14;
+
+  @UI.hidden: true
+  MatEbene15;
+
+  @UI.hidden: true
+  MatEbene16;
+
+  @UI.hidden: true
+  MatEbene17;
+
+  @UI.hidden: true
+  MatEbene18;
+
+  @UI.hidden: true
+  MatEbene19;
+}

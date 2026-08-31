@@ -1,0 +1,45 @@
+<core:FragmentDefinition
+    xmlns="sap.m"
+    xmlns:core="sap.ui.core"
+    xmlns:l="sap.ui.layout.form">
+
+    <Dialog
+        id="addRowDialog"
+        title="{i18n>dlgAddTitle}"
+        contentWidth="28rem"
+        escapeHandler=".onAddCancel">
+
+        <l:SimpleForm layout="ResponsiveGridLayout" editable="true"
+                      labelSpanXL="4" labelSpanL="4" labelSpanM="4" labelSpanS="12">
+            <l:content>
+
+                <Label text="{i18n>colMaterial}" required="true"/>
+                <Input
+                    id="newMaterial"
+                    value="{ui>/newMaterial}"
+                    showValueHelp="true"
+                    valueHelpRequest=".onMaterialValueHelp"
+                    placeholder="{i18n>dlgMaterialPlaceholder}"/>
+
+                <Label text="{i18n>colLevel}" required="true"/>
+                <Select
+                    id="newLevel"
+                    selectedKey="{ui>/newLevel}"
+                    items="{ui>/levels}"
+                    width="8rem">
+                    <core:Item key="{ui>key}" text="{ui>text}"/>
+                </Select>
+
+            </l:content>
+        </l:SimpleForm>
+
+        <beginButton>
+            <Button text="{i18n>btnCreate}" type="Emphasized" press=".onAddConfirm"/>
+        </beginButton>
+        <endButton>
+            <Button text="{i18n>btnCancel}" press=".onAddCancel"/>
+        </endButton>
+
+    </Dialog>
+
+</core:FragmentDefinition>

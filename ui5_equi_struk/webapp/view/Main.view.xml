@@ -1,0 +1,206 @@
+<mvc:View
+    controllerName="de.enercon.qm009.equistruk.controller.Main"
+    xmlns="sap.m"
+    xmlns:mvc="sap.ui.core.mvc"
+    xmlns:f="sap.f"
+    xmlns:l="sap.ui.layout"
+    xmlns:core="sap.ui.core"
+    displayBlock="true"
+    height="100%">
+
+    <f:DynamicPage id="page" headerExpanded="true" toggleHeaderOnTitleClick="true" busy="{ui>/busy}">
+
+        <f:title>
+            <f:DynamicPageTitle>
+                <f:heading>
+                    <Title text="{i18n>appTitle}" level="H1"/>
+                </f:heading>
+                <f:expandedContent>
+                    <Text text="{i18n>appSubtitle}"/>
+                </f:expandedContent>
+                <f:snappedContent>
+                    <Text text="{ui>/planDescription}"/>
+                </f:snappedContent>
+            </f:DynamicPageTitle>
+        </f:title>
+
+        <f:header>
+            <f:DynamicPageHeader pinnable="true">
+                <l:Grid defaultSpan="XL2 L3 M4 S6" hSpacing="1" vSpacing="0">
+
+                    <VBox>
+                        <Label text="{i18n>filterPlanType}" labelFor="planType"/>
+                        <Input id="planType" value="{ui>/planType}" maxLength="1"
+                               submit=".onSearch" width="100%"/>
+                    </VBox>
+
+                    <VBox>
+                        <Label text="{i18n>filterPlanGroup}" labelFor="planGroup" required="true"/>
+                        <Input id="planGroup" value="{ui>/planGroup}" maxLength="8"
+                               submit=".onSearch" width="100%"/>
+                    </VBox>
+
+                    <VBox>
+                        <Label text="{i18n>filterGroupCounter}" labelFor="groupCounter" required="true"/>
+                        <Input id="groupCounter" value="{ui>/groupCounter}" maxLength="2"
+                               submit=".onSearch" width="100%"/>
+                    </VBox>
+
+                    <VBox>
+                        <Label text="{i18n>filterNodeCounter}" labelFor="nodeCounter" required="true"/>
+                        <Input id="nodeCounter" value="{ui>/nodeCounter}" maxLength="8"
+                               submit=".onSearch" width="100%"/>
+                    </VBox>
+
+                    <VBox justifyContent="End">
+                        <Label text=" "/>
+                        <Button text="{i18n>btnSearch}" type="Emphasized" press=".onSearch" width="100%"/>
+                    </VBox>
+
+                </l:Grid>
+            </f:DynamicPageHeader>
+        </f:header>
+
+        <f:content>
+            <Table
+                id="structureTable"
+                inset="false"
+                growing="true"
+                growingThreshold="200"
+                growingScrollToLoad="true"
+                sticky="ColumnHeaders,HeaderToolbar"
+                noDataText="{i18n>tableNoData}"
+                items="{
+                    path: '/EquiStruk',
+                    suspended: true,
+                    parameters: {
+                        $orderby: 'SeqNumber',
+                        $count: true
+                    }
+                }">
+
+                <headerToolbar>
+                    <OverflowToolbar>
+                        <Title text="{i18n>tableTitle}" level="H2"/>
+                        <ToolbarSpacer/>
+                        <Button
+                            id="messageButton"
+                            icon="sap-icon://alert"
+                            type="Attention"
+                            text="{= ${message>/}.length }"
+                            tooltip="{i18n>btnMessages}"
+                            visible="{= ${message>/}.length &gt; 0 }"
+                            press=".onShowMessages"/>
+                        <Button
+                            icon="sap-icon://add"
+                            text="{i18n>btnAdd}"
+                            type="Transparent"
+                            enabled="{ui>/planSelected}"
+                            press=".onAdd"/>
+                        <Button
+                            icon="sap-icon://refresh"
+                            tooltip="{i18n>btnRefresh}"
+                            type="Transparent"
+                            enabled="{ui>/planSelected}"
+                            press=".onRefresh"/>
+                    </OverflowToolbar>
+                </headerToolbar>
+
+                <columns>
+                    <Column width="5rem">
+                        <Text text="{i18n>colSeq}"/>
+                    </Column>
+                    <Column width="5rem" hAlign="Center">
+                        <Text text="{i18n>colLevel}"/>
+                    </Column>
+                    <Column>
+                        <Text text="{i18n>colMaterial}"/>
+                    </Column>
+                    <Column width="16rem" hAlign="End">
+                        <Text text="{i18n>colActions}"/>
+                    </Column>
+                </columns>
+
+                <items>
+                    <ColumnListItem vAlign="Middle">
+                        <cells>
+
+                            <Input
+                                class="equiStrukLevel"
+                                value="{= parseInt(${SeqNumber}, 10) }"
+                                type="Number"
+                                textAlign="Center"
+                                width="4rem"
+                                maxLength="6"
+                                tooltip="{i18n>ttSeqInput}"
+                                change=".onSeqChange"/>
+
+                            <Input
+                                class="equiStrukLevel"
+                                value="{path: 'Ebene', mode: 'OneWay', formatter: '.formatter.levelText'}"
+                                type="Number"
+                                textAlign="Center"
+                                width="3.5rem"
+                                maxLength="2"
+                                tooltip="{i18n>ttLevelInput}"
+                                change=".onLevelChange"/>
+
+                            <HBox alignItems="Center" renderType="Bare" class="equiStrukMaterial">
+                                <customData>
+                                    <core:CustomData
+                                        key="ebene"
+                                        value="{path: 'Ebene', formatter: '.formatter.levelText'}"
+                                        writeToDom="true"/>
+                                </customData>
+                                <VBox
+                                    class="equiStrukIndent"
+                                    visible="{= ${Ebene} &gt; 0 }"
+                                    width="{path: 'Ebene', formatter: '.formatter.indent'}"/>
+                                <VBox
+                                    class="equiStrukConnector"
+                                    visible="{= ${Ebene} &gt; 0 }"/>
+                                <ObjectIdentifier
+                                    title="{path: 'Material', formatter: '.formatter.matnrOut'}"
+                                    text="{_MatText/MaterialName}"/>
+                            </HBox>
+
+                            <HBox justifyContent="End" alignItems="Center" class="equiStrukActions">
+                                <Button
+                                    icon="sap-icon://navigation-up-arrow"
+                                    tooltip="{i18n>btnUp}"
+                                    type="Transparent"
+                                    press=".onMoveUp"/>
+                                <Button
+                                    icon="sap-icon://navigation-down-arrow"
+                                    tooltip="{i18n>btnDown}"
+                                    type="Transparent"
+                                    press=".onMoveDown"/>
+                                <Button
+                                    icon="sap-icon://navigation-left-arrow"
+                                    tooltip="{i18n>btnOutdent}"
+                                    type="Transparent"
+                                    enabled="{path: 'Ebene', formatter: '.formatter.canOutdent'}"
+                                    press=".onOutdent"/>
+                                <Button
+                                    icon="sap-icon://navigation-right-arrow"
+                                    tooltip="{i18n>btnIndent}"
+                                    type="Transparent"
+                                    enabled="{path: 'Ebene', formatter: '.formatter.canIndent'}"
+                                    press=".onIndent"/>
+                                <Button
+                                    icon="sap-icon://delete"
+                                    tooltip="{i18n>btnDelete}"
+                                    type="Transparent"
+                                    press=".onDelete"/>
+                            </HBox>
+
+                        </cells>
+                    </ColumnListItem>
+                </items>
+
+            </Table>
+        </f:content>
+
+    </f:DynamicPage>
+
+</mvc:View>

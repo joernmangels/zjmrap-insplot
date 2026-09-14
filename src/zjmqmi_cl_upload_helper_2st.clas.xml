@@ -3,8 +3,8 @@
  <asx:abap xmlns:asx="http://www.sap.com/abapxml" version="1.0">
   <asx:values>
    <VSEOCLASS>
-    <CLSNAME>ZJMQMI_CL_UPLOAD_HELPER</CLSNAME>
-    <LANGU>E</LANGU>
+    <CLSNAME>ZJMQMI_CL_UPLOAD_HELPER_2ST</CLSNAME>
+    <LANGU>D</LANGU>
     <DESCRIPT>Generated from zjmqmi_cl_upload_helper.clas.abap</DESCRIPT>
     <STATE>1</STATE>
     <CLSCCINCL>X</CLSCCINCL>
@@ -104,43 +104,6 @@
      </TEXTPOOL>
     </item>
    </I18N_TPOOL>
-   <DESCRIPTIONS>
-    <SEOCOMPOTX>
-     <CMPNAME>GV_HEAD_MATNR</CMPNAME>
-     <LANGU>E</LANGU>
-     <DESCRIPT>Materialnummer</DESCRIPT>
-    </SEOCOMPOTX>
-    <SEOCOMPOTX>
-     <CMPNAME>GV_HEAD_SERNR</CMPNAME>
-     <LANGU>E</LANGU>
-     <DESCRIPT>Single-Unit Number for the Unit to Be Inspected</DESCRIPT>
-    </SEOCOMPOTX>
-    <SEOCOMPOTX>
-     <CMPNAME>_CHECK_UPDATE_SERNR</CMPNAME>
-     <LANGU>E</LANGU>
-     <DESCRIPT>SerialNr Prüflos prüfen/updaten</DESCRIPT>
-    </SEOCOMPOTX>
-   </DESCRIPTIONS>
-   <DESCRIPTIONS_SUB>
-    <SEOSUBCOTX>
-     <CMPNAME>_CHECK_UPDATE_SERNR</CMPNAME>
-     <SCONAME>I_LOT</SCONAME>
-     <LANGU>E</LANGU>
-     <DESCRIPT>Inspection Lot Number</DESCRIPT>
-    </SEOSUBCOTX>
-    <SEOSUBCOTX>
-     <CMPNAME>_CHECK_UPDATE_SERNR</CMPNAME>
-     <SCONAME>I_MATNR</SCONAME>
-     <LANGU>E</LANGU>
-     <DESCRIPT>Material Number</DESCRIPT>
-    </SEOSUBCOTX>
-    <SEOSUBCOTX>
-     <CMPNAME>_CHECK_UPDATE_SERNR</CMPNAME>
-     <SCONAME>I_SERNR</SCONAME>
-     <LANGU>E</LANGU>
-     <DESCRIPT>Single-Unit Number for the Unit to Be Inspected</DESCRIPT>
-    </SEOSUBCOTX>
-   </DESCRIPTIONS_SUB>
   </asx:values>
  </asx:abap>
 </abapGit>

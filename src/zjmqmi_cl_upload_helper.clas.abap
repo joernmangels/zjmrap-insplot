@@ -10,8 +10,11 @@ CLASS zjmqmi_cl_upload_helper DEFINITION
                 iv_overwrite   TYPE abap_bool      OPTIONAL
       RETURNING VALUE(rv_msg)  TYPE string.
 
-  PRIVATE SECTION.
-    TYPES: BEGIN OF ty_upload_row,
+protected section.
+private section.
+
+  types:
+    BEGIN OF ty_upload_row,
              prueflosnummer TYPE c LENGTH 18,
              vorgangsnummer TYPE c LENGTH 4,
              quanqual       TYPE c LENGTH 2,
@@ -20,16 +23,20 @@ CLASS zjmqmi_cl_upload_helper DEFINITION
              ql_kurztext     TYPE string,
              excel_row       TYPE i,
              radii_kurztexts TYPE STANDARD TABLE OF string WITH EMPTY KEY,
-           END OF ty_upload_row.
-    TYPES ty_upload_rows TYPE STANDARD TABLE OF ty_upload_row WITH EMPTY KEY.
-    TYPES: BEGIN OF ty_up_code,
+           END OF ty_upload_row .
+  types:
+    ty_upload_rows TYPE STANDARD TABLE OF ty_upload_row WITH EMPTY KEY .
+  types:
+    BEGIN OF ty_up_code,
              code       TYPE qpac-code,
              codegruppe TYPE qpac-codegruppe,
              bewertung  TYPE qpac-bewertung,
              kurztext   TYPE qpct-kurztext,
-           END OF ty_up_code.
-    TYPES ty_up_codes TYPE STANDARD TABLE OF ty_up_code WITH EMPTY KEY.
-    TYPES: BEGIN OF ty_prot_entry,
+           END OF ty_up_code .
+  types:
+    ty_up_codes TYPE STANDARD TABLE OF ty_up_code WITH EMPTY KEY .
+  types:
+    BEGIN OF ty_prot_entry,
              prueflos        TYPE qals-prueflos,
              filename        TYPE string,
              excel_row       TYPE i,
@@ -40,139 +47,167 @@ CLASS zjmqmi_cl_upload_helper DEFINITION
              radii_code      TYPE qpac-code,
              radii_codegrp   TYPE qpac-codegruppe,
              radii_kurztext  TYPE qpct-kurztext,
-           END OF ty_prot_entry.
-    TYPES: BEGIN OF ty_bapi_input,
+           END OF ty_prot_entry .
+  types:
+    BEGIN OF ty_bapi_input,
              char_results   TYPE TABLE OF bapi2045d2 WITH EMPTY KEY,
              sample_results TYPE TABLE OF bapi2045d3 WITH EMPTY KEY,
              single_results TYPE TABLE OF bapi2045d4 WITH EMPTY KEY,
-           END OF ty_bapi_input.
-    TYPES ty_return_tab TYPE TABLE OF bapiret2 WITH EMPTY KEY.
-    TYPES ty_ul_status  TYPE c LENGTH 1.
-    TYPES ty_int_set    TYPE STANDARD TABLE OF i WITH EMPTY KEY.
+           END OF ty_bapi_input .
+  types:
+    ty_return_tab TYPE TABLE OF bapiret2 WITH EMPTY KEY .
+  types:
+    ty_ul_status  TYPE c LENGTH 1 .
+  types:
+    ty_int_set    TYPE STANDARD TABLE OF i WITH EMPTY KEY .
 
-    METHODS _get_marked_styles
-      IMPORTING iv_styles_xml    TYPE string
-      RETURNING VALUE(rt_marked) TYPE ty_int_set.
+  data GV_HEAD_SERNR type QSERIALNR .
+  data GV_HEAD_MATNR type MATNR .
 
-    METHODS _col_letter_to_idx
-      IMPORTING iv_col        TYPE string
-      RETURNING VALUE(rv_idx) TYPE i.
-
-    METHODS _parse_xlsx
-      IMPORTING iv_xstring     TYPE xstring
-      RETURNING VALUE(rt_rows) TYPE ty_upload_rows.
-
-    METHODS _get_codes_for_char
-      IMPORTING iv_prueflos     TYPE qals-prueflos
-                iv_vornr        TYPE string
-                iv_merknr       TYPE string
-      RETURNING VALUE(rt_codes) TYPE ty_up_codes.
-
-    METHODS _get_qamv_steuerkz
-      IMPORTING iv_prueflos        TYPE qals-prueflos
-                iv_vornr           TYPE string
-                iv_merknr          TYPE string
-      RETURNING VALUE(rv_steuerkz) TYPE qamv-steuerkz.
-
-    METHODS _get_evaluation
-      IMPORTING iv_prueflos      TYPE qals-prueflos
-                iv_vornr         TYPE string
-                iv_merknr        TYPE string
-                iv_messwert      TYPE string
-      RETURNING VALUE(rv_result) TYPE char1.
-
-    METHODS _get_next_res_no
-      IMPORTING iv_prueflos    TYPE qals-prueflos
-                iv_inspoper    TYPE vornr
-                iv_inspchar    TYPE qamv-merknr
-      RETURNING VALUE(rv_next) TYPE numc4.
-
-    METHODS _get_ql_code
-      IMPORTING iv_prueflos    TYPE qals-prueflos
-                iv_vornr       TYPE string
-                iv_merknr      TYPE string
-                iv_kurztext    TYPE string
-      RETURNING VALUE(rs_code) TYPE ty_up_code.
-
-    METHODS _get_radii_code
-      IMPORTING iv_prueflos    TYPE qals-prueflos
-                iv_vornr       TYPE string
-                iv_merknr      TYPE string
-                iv_kurztext    TYPE string
-      RETURNING VALUE(rs_code) TYPE ty_up_code.
-
-    METHODS _invalidate_char
-      IMPORTING iv_prueflos TYPE qals-prueflos
-                iv_inspoper TYPE vornr
-                iv_inspchar TYPE qamv-merknr.
-
-    METHODS _write_prot
-      IMPORTING entry TYPE ty_prot_entry.
-
-    METHODS _update_status
-      IMPORTING iv_prueflos TYPE qals-prueflos
-                iv_status   TYPE c.
-
-    METHODS _collect_operations
-      IMPORTING it_rows       TYPE ty_upload_rows
-      RETURNING VALUE(rt_ops) TYPE string_table.
-
-    METHODS _build_bapi_input
-      IMPORTING iv_prueflos    TYPE qals-prueflos
-                iv_vornr       TYPE string
-                iv_filename    TYPE string
-                it_rows        TYPE ty_upload_rows
-                iv_overwrite   TYPE abap_bool OPTIONAL
-      RETURNING VALUE(rs_input) TYPE ty_bapi_input.
-
-    METHODS _write_prot_for_operation
-      IMPORTING iv_prueflos  TYPE qals-prueflos
-                iv_filename  TYPE string
-                it_rows      TYPE ty_upload_rows
-                iv_vornr     TYPE string
-                it_return    TYPE ty_return_tab
-      CHANGING  cv_ul_status TYPE ty_ul_status.
-
-    METHODS _build_success_prot_msg
-      IMPORTING iv_prueflos    TYPE qals-prueflos
-                iv_vornr       TYPE string
-                is_row         TYPE ty_upload_row
-      RETURNING VALUE(rv_msg)  TYPE string.
-
-    METHODS _post_results
-      IMPORTING iv_prueflos  TYPE qals-prueflos
-                iv_filename  TYPE string
-                it_rows      TYPE ty_upload_rows
-                iv_overwrite TYPE abap_bool OPTIONAL.
+  methods _CHECK_UPDATE_SERNR
+    importing
+      !I_LOT type QALS-PRUEFLOS
+      !I_SERNR type QSERIALNR
+      !I_MATNR type MATNR .
+  methods _GET_MARKED_STYLES
+    importing
+      !IV_STYLES_XML type STRING
+    returning
+      value(RT_MARKED) type TY_INT_SET .
+  methods _COL_LETTER_TO_IDX
+    importing
+      !IV_COL type STRING
+    returning
+      value(RV_IDX) type I .
+  methods _PARSE_XLSX
+    importing
+      !IV_XSTRING type XSTRING
+    returning
+      value(RT_ROWS) type TY_UPLOAD_ROWS .
+  methods _GET_CODES_FOR_CHAR
+    importing
+      !IV_PRUEFLOS type QALS-PRUEFLOS
+      !IV_VORNR type STRING
+      !IV_MERKNR type STRING
+    returning
+      value(RT_CODES) type TY_UP_CODES .
+  methods _GET_QAMV_STEUERKZ
+    importing
+      !IV_PRUEFLOS type QALS-PRUEFLOS
+      !IV_VORNR type STRING
+      !IV_MERKNR type STRING
+    returning
+      value(RV_STEUERKZ) type QAMV-STEUERKZ .
+  methods _GET_EVALUATION
+    importing
+      !IV_PRUEFLOS type QALS-PRUEFLOS
+      !IV_VORNR type STRING
+      !IV_MERKNR type STRING
+      !IV_MESSWERT type STRING
+    returning
+      value(RV_RESULT) type CHAR1 .
+  methods _GET_NEXT_RES_NO
+    importing
+      !IV_PRUEFLOS type QALS-PRUEFLOS
+      !IV_INSPOPER type VORNR
+      !IV_INSPCHAR type QAMV-MERKNR
+    returning
+      value(RV_NEXT) type NUMC4 .
+  methods _GET_QL_CODE
+    importing
+      !IV_PRUEFLOS type QALS-PRUEFLOS
+      !IV_VORNR type STRING
+      !IV_MERKNR type STRING
+      !IV_KURZTEXT type STRING
+    returning
+      value(RS_CODE) type TY_UP_CODE .
+  methods _GET_RADII_CODE
+    importing
+      !IV_PRUEFLOS type QALS-PRUEFLOS
+      !IV_VORNR type STRING
+      !IV_MERKNR type STRING
+      !IV_KURZTEXT type STRING
+    returning
+      value(RS_CODE) type TY_UP_CODE .
+  methods _INVALIDATE_CHAR
+    importing
+      !IV_PRUEFLOS type QALS-PRUEFLOS
+      !IV_INSPOPER type VORNR
+      !IV_INSPCHAR type QAMV-MERKNR .
+  methods _WRITE_PROT
+    importing
+      !ENTRY type TY_PROT_ENTRY .
+  methods _UPDATE_STATUS
+    importing
+      !IV_PRUEFLOS type QALS-PRUEFLOS
+      !IV_STATUS type C .
+  methods _COLLECT_OPERATIONS
+    importing
+      !IT_ROWS type TY_UPLOAD_ROWS
+    returning
+      value(RT_OPS) type STRING_TABLE .
+  methods _BUILD_BAPI_INPUT
+    importing
+      !IV_PRUEFLOS type QALS-PRUEFLOS
+      !IV_VORNR type STRING
+      !IV_FILENAME type STRING
+      !IT_ROWS type TY_UPLOAD_ROWS
+      !IV_OVERWRITE type ABAP_BOOL optional
+    returning
+      value(RS_INPUT) type TY_BAPI_INPUT .
+  methods _WRITE_PROT_FOR_OPERATION
+    importing
+      !IV_PRUEFLOS type QALS-PRUEFLOS
+      !IV_FILENAME type STRING
+      !IT_ROWS type TY_UPLOAD_ROWS
+      !IV_VORNR type STRING
+      !IT_RETURN type TY_RETURN_TAB
+    changing
+      !CV_UL_STATUS type TY_UL_STATUS .
+  methods _BUILD_SUCCESS_PROT_MSG
+    importing
+      !IV_PRUEFLOS type QALS-PRUEFLOS
+      !IV_VORNR type STRING
+      !IS_ROW type TY_UPLOAD_ROW
+    returning
+      value(RV_MSG) type STRING .
+  methods _POST_RESULTS
+    importing
+      !IV_PRUEFLOS type QALS-PRUEFLOS
+      !IV_FILENAME type STRING
+      !IT_ROWS type TY_UPLOAD_ROWS
+      !IV_OVERWRITE type ABAP_BOOL optional .
 ENDCLASS.
 
-CLASS zjmqmi_cl_upload_helper IMPLEMENTATION.
+
+
+CLASS ZJMQMI_CL_UPLOAD_HELPER IMPLEMENTATION.
+
 
   METHOD process_upload.
+    DATA lv_sernr_head_vorg    TYPE vornr.
+    DATA lv_sernr_head_merkmal TYPE qmerknrp.
+    DATA: le_qm009_e TYPE zjmqm_qm009_e.
     DATA(lt_rows) = _parse_xlsx( iv_xstring ).
     IF lt_rows IS INITIAL.
       rv_msg = TEXT-001.
       RETURN.
     ENDIF.
-
     DATA lt_lots TYPE TABLE OF qals-prueflos WITH EMPTY KEY.
     LOOP AT lt_rows INTO DATA(ls_r).
       INSERT CONV qals-prueflos( condense( ls_r-prueflosnummer ) ) INTO TABLE lt_lots.
     ENDLOOP.
     SORT lt_lots BY table_line.
     DELETE ADJACENT DUPLICATES FROM lt_lots COMPARING table_line.
-
     IF it_filter_lots IS NOT INITIAL.
       DELETE lt_lots WHERE NOT table_line IN
         VALUE rseloption( FOR lv IN it_filter_lots
                           ( sign = 'I' option = 'EQ' low = lv ) ).
     ENDIF.
-
     IF lt_lots IS INITIAL.
       rv_msg = TEXT-002.
       RETURN.
     ENDIF.
-
     DATA lv_detail TYPE string.
     DATA lv_total  TYPE i.
     LOOP AT lt_lots INTO DATA(lv_lot).
@@ -180,6 +215,37 @@ CLASS zjmqmi_cl_upload_helper IMPLEMENTATION.
         FOR r IN lt_rows WHERE ( prueflosnummer = lv_lot ) ( r )
       ).
       DATA(lv_lot_cnt) = lines( lt_lot_rows ).
+      SELECT SINGLE a~matnr, a~werk, a~art, a~herkunft, a~sernr_head_vorg, a~sernr_head_merkmal, a~prefix_sernr
+             FROM zjmqm_qm009_e AS a
+             INNER JOIN qals AS b
+             ON  a~matnr = b~selmatnr
+             AND a~werk  = b~werk
+             AND a~art   = b~art
+             AND a~herkunft = b~herkunft
+             INTO CORRESPONDING FIELDS OF @le_qm009_e
+        WHERE b~prueflos = @lv_lot
+        AND   a~sernr_head_vorg <> @space
+        AND   a~sernr_head_merkmal <> 0.
+      IF sy-subrc = 0.
+        READ TABLE lt_rows ASSIGNING FIELD-SYMBOL(<fe_row>) WITH KEY vorgangsnummer = le_qm009_e-sernr_head_vorg
+                                                                     merkmalsnummer = le_qm009_e-sernr_head_merkmal.
+        IF sy-subrc = 0.
+          gv_head_sernr = <fe_row>-messwert.
+          IF le_qm009_e-prefix_sernr IS NOT INITIAL.
+            CONCATENATE le_qm009_e-prefix_sernr gv_head_sernr INTO gv_head_sernr.
+          ENDIF.
+          SELECT SINGLE selmatnr FROM qals INTO gv_head_matnr
+                 WHERE prueflos = lv_lot.
+        ENDIF.
+      ENDIF.
+      IF gv_head_sernr IS NOT INITIAL.
+        _check_update_sernr(
+          i_lot   = lv_lot
+          i_matnr = gv_head_matnr
+          i_sernr = gv_head_sernr
+        ).
+      ENDIF.
+
       lv_total += lv_lot_cnt.
       _post_results(
         iv_prueflos  = lv_lot
@@ -1052,5 +1118,36 @@ CLASS zjmqmi_cl_upload_helper IMPLEMENTATION.
     CALL FUNCTION 'BAPI_TRANSACTION_COMMIT' EXPORTING wait = `X`.
   ENDMETHOD.
 
-ENDCLASS.
 
+  METHOD _check_update_sernr.
+    DATA: ls_ser03  TYPE ser03,
+          ls_objk   TYPE objk,
+          ls_sernr  TYPE gernr,
+          lt_sernr  TYPE zjmqm009_gernr_t,
+          ls_return TYPE bapiret2,
+          lt_return TYPE bapirettab.
+* Hat das PL die Sernr schon ?
+    SELECT a~obknr, a~prueflos, a~datum, a~uzeit, a~anzsn, a~vorgang
+     INTO TABLE @DATA(lt_ser04)
+           FROM ser04 AS a INNER JOIN objk AS b
+           ON a~obknr = b~obknr
+           WHERE a~prueflos = @i_lot
+           AND   b~sernr    = @i_sernr
+           AND   b~taser    = 'SER04'.
+    IF lines( lt_ser04 ) = 0.
+* Sernr ANlegen zum PL
+      CLEAR: lt_sernr, lt_return.
+      APPEND i_sernr TO lt_sernr.
+      CALL FUNCTION 'ZJMQM009_ASGN_SERNR_PL_2' "DESTINATION 'NONE'
+        EXPORTING
+          iv_plos   = i_lot
+          iv_matnr  = i_matnr
+*         it_sernr  = lt_sernr
+          iv_sernr  = i_sernr
+          iv_test   = space
+        IMPORTING
+          et_return = lt_return.
+    ENDIF.
+
+  ENDMETHOD.
+ENDCLASS.

@@ -5,10 +5,12 @@
 "! je Zeile bereits berechnet). Elternzeile einer Zeile ist die letzte
 "! vorangegangene Zeile mit Ebene - 1.
 "!
-"! Ein Material darf in der Struktur mehrfach vorkommen: die n-te Zeile
-"! eines Materials bekommt das n-te Equipment dieses Materials aus dem Los
-"! (Vorgangsreihenfolge). Eindeutig sein muss nur Material + Serialnummer.
-"! Eingebaut wird mit BAPI_EQUI_INSTALL ins Equipment der Elternzeile.
+"! Eine Strukturzeile ist eine Vorlage: sie bekommt ALLE Equipments ihres
+"! Materials aus dem Los. Beim Einbau gilt zwischen Kind- und Elternzeile
+"! 1:n (ein Eltern-Equipment nimmt alle Kinder) oder n:n (paarweise in
+"! Reihenfolge); alles andere ist unklar und wird gemeldet. Dieselbe Regel
+"! gilt, wenn ein Material mehrfach in der Struktur steht.
+"! Eindeutig sein muss nur Material + Serialnummer im Los.
 "!
 "! Kein Ausbau: sitzt ein Equipment bereits woanders, wird nur gemeldet.
 CLASS zjmqms_cl_equi_struktur DEFINITION
@@ -23,8 +25,8 @@ CLASS zjmqms_cl_equi_struktur DEFINITION
              ebene            TYPE i,
              matnr            TYPE matnr,
              parent_seqnumber TYPE zjmqm_qm009_q-lfdnr,
-             sernr            TYPE gernr,
-             equnr            TYPE equnr,
+             equis            TYPE zjmqms_cl_lot_equi=>tt_equi,
+             ambiguous        TYPE abap_bool,
            END OF ty_node,
            tt_node TYPE STANDARD TABLE OF ty_node WITH EMPTY KEY.
 
@@ -46,14 +48,23 @@ CLASS zjmqms_cl_equi_struktur DEFINITION
     CLASS-METHODS resolve_parents
       CHANGING ct_nodes TYPE tt_node.
 
-    "! Ordnet jeder Strukturzeile ein Equipment aus dem Los zu: die n-te
-    "! Zeile eines Materials bekommt das n-te Equipment dieses Materials in
-    "! der Reihenfolge von it_equi. Zeilen ohne passendes Equipment bleiben
-    "! ohne Serialnummer, Equipments ohne Zeile kommen in et_unassigned.
+    "! Verteilt die Equipments des Loses auf die Strukturzeilen ihres
+    "! Materials: eine Zeile bekommt alle, gleich viele Zeilen bekommen je
+    "! eines in Reihenfolge, sonst werden die Zeilen als unklar markiert.
+    "! Equipments ohne Strukturzeile kommen in et_unassigned.
     CLASS-METHODS assign_equipments
       IMPORTING it_equi       TYPE zjmqms_cl_lot_equi=>tt_equi
       EXPORTING et_unassigned TYPE zjmqms_cl_lot_equi=>tt_equi
       CHANGING  ct_nodes      TYPE tt_node.
+
+    "! Eltern-Equipment fuer das iv_index-te von iv_count Kind-Equipments:
+    "! ein Eltern-Equipment nimmt alle Kinder, gleich viele werden paarweise
+    "! zugeordnet. Initial, wenn die Zuordnung unklar ist.
+    CLASS-METHODS parent_for_child
+      IMPORTING it_parents       TYPE zjmqms_cl_lot_equi=>tt_equi
+                iv_index         TYPE i
+                iv_count         TYPE i
+      RETURNING VALUE(rs_parent) TYPE zjmqms_cl_lot_equi=>ty_equi.
 
   PRIVATE SECTION.
 
@@ -72,6 +83,16 @@ CLASS zjmqms_cl_equi_struktur DEFINITION
     METHODS find_duplicate
       RETURNING VALUE(rs_dup) TYPE zjmqms_cl_lot_equi=>ty_equi.
 
+    METHODS install_children
+      IMPORTING is_node   TYPE ty_node
+                is_parent TYPE ty_node.
+
+    METHODS install_one
+      IMPORTING is_node   TYPE ty_node
+                is_equi   TYPE zjmqms_cl_lot_equi=>ty_equi
+                is_parent TYPE ty_node
+                is_supequi TYPE zjmqms_cl_lot_equi=>ty_equi.
+
     METHODS current_superior
       IMPORTING iv_equnr        TYPE equnr
       RETURNING VALUE(rv_hequi) TYPE equnr.
@@ -83,6 +104,7 @@ CLASS zjmqms_cl_equi_struktur DEFINITION
 
     METHODS add_log
       IMPORTING is_node   TYPE ty_node
+                is_equi   TYPE zjmqms_cl_lot_equi=>ty_equi OPTIONAL
                 iv_action TYPE string
                 iv_status TYPE symsgty
                 iv_msg    TYPE string.
@@ -137,33 +159,53 @@ CLASS zjmqms_cl_equi_struktur IMPLEMENTATION.
 
   METHOD assign_equipments.
 
-    " Indizes der bereits vergebenen Equipments in it_equi
-    DATA lt_used TYPE SORTED TABLE OF i WITH UNIQUE KEY table_line.
-
     CLEAR et_unassigned.
 
-    LOOP AT ct_nodes ASSIGNING FIELD-SYMBOL(<node>).
-      CLEAR: <node>-sernr, <node>-equnr.
+    LOOP AT ct_nodes ASSIGNING FIELD-SYMBOL(<node>)
+         GROUP BY ( matnr = <node>-matnr size = GROUP SIZE ) INTO DATA(ls_group).
 
-      " Naechstes noch freies Equipment dieses Materials
-      LOOP AT it_equi INTO DATA(ls_equi) WHERE matnr = <node>-matnr.
-        DATA(lv_index) = sy-tabix.
-        IF line_exists( lt_used[ table_line = lv_index ] ).
-          CONTINUE.
+      " Alle Equipments dieses Materials, in Vorgangsreihenfolge
+      DATA(lt_equi_mat) = VALUE zjmqms_cl_lot_equi=>tt_equi(
+                            FOR ls_equi IN it_equi WHERE ( matnr = ls_group-matnr ) ( ls_equi ) ).
+
+      DATA(lv_index) = 0.
+
+      LOOP AT GROUP ls_group ASSIGNING FIELD-SYMBOL(<row>).
+        CLEAR: <row>-equis, <row>-ambiguous.
+        lv_index = lv_index + 1.
+
+        IF ls_group-size = 1.
+          " Eine Zeile: nimmt alle Equipments
+          <row>-equis = lt_equi_mat.
+        ELSEIF ls_group-size = lines( lt_equi_mat ).
+          " Gleich viele Zeilen wie Equipments: eins je Zeile
+          APPEND lt_equi_mat[ lv_index ] TO <row>-equis.
+        ELSEIF lt_equi_mat IS NOT INITIAL.
+          <row>-ambiguous = abap_true.
         ENDIF.
-        INSERT lv_index INTO TABLE lt_used.
-        <node>-sernr = ls_equi-sernr.
-        <node>-equnr = ls_equi-equnr.
-        EXIT.
       ENDLOOP.
+
     ENDLOOP.
 
-    LOOP AT it_equi INTO ls_equi.
-      lv_index = sy-tabix.
-      IF NOT line_exists( lt_used[ table_line = lv_index ] ).
-        APPEND ls_equi TO et_unassigned.
+    " Equipments, deren Material gar nicht in der Struktur steht
+    LOOP AT it_equi INTO DATA(ls_free).
+      IF NOT line_exists( ct_nodes[ matnr = ls_free-matnr ] ).
+        APPEND ls_free TO et_unassigned.
       ENDIF.
     ENDLOOP.
+
+  ENDMETHOD.
+
+
+  METHOD parent_for_child.
+
+    DATA(lv_parents) = lines( it_parents ).
+
+    IF lv_parents = 1.
+      rs_parent = it_parents[ 1 ].
+    ELSEIF lv_parents = iv_count AND iv_index BETWEEN 1 AND lv_parents.
+      rs_parent = it_parents[ iv_index ].
+    ENDIF.
 
   ENDMETHOD.
 
@@ -176,9 +218,8 @@ CLASS zjmqms_cl_equi_struktur IMPLEMENTATION.
     DATA(ls_dup) = find_duplicate( ).
 
     IF ls_dup-matnr IS NOT INITIAL.
-      add_log( is_node   = VALUE #( matnr = ls_dup-matnr
-                                    sernr = ls_dup-sernr
-                                    equnr = ls_dup-equnr )
+      add_log( is_node   = VALUE #( matnr = ls_dup-matnr )
+               is_equi   = ls_dup
                iv_action = zjmqms_cl_lot_equi=>c_action-skipped
                iv_status = 'E'
                iv_msg    = |Serialnummer { ls_dup-sernr } zu Material { ls_dup-matnr ALPHA = OUT } | &&
@@ -208,31 +249,44 @@ CLASS zjmqms_cl_equi_struktur IMPLEMENTATION.
                        CHANGING  ct_nodes      = lt_nodes ).
 
     LOOP AT lt_unassigned INTO DATA(ls_free).
-      add_log( is_node   = VALUE #( matnr = ls_free-matnr
-                                    sernr = ls_free-sernr
-                                    equnr = ls_free-equnr )
+      add_log( is_node   = VALUE #( matnr = ls_free-matnr )
+               is_equi   = ls_free
                iv_action = zjmqms_cl_lot_equi=>c_action-skipped
                iv_status = 'W'
-               iv_msg    = |Vorgang { ls_free-vornr }: keine freie Strukturzeile fuer Material | &&
-                           |{ ls_free-matnr ALPHA = OUT } - Equipment bleibt ohne Einbau| ).
+               iv_msg    = |Vorgang { ls_free-vornr }: Material { ls_free-matnr ALPHA = OUT } | &&
+                           |steht nicht in der Struktur - Equipment bleibt ohne Einbau| ).
     ENDLOOP.
 
     " ---- Einbau je Zeile ---------------------------------------------
     LOOP AT lt_nodes INTO DATA(ls_node).
 
-      IF ls_node-sernr IS INITIAL.
+      IF ls_node-ambiguous = abap_true.
+        DATA(lv_rows)  = REDUCE i( INIT n = 0 FOR r IN lt_nodes WHERE ( matnr = ls_node-matnr ) NEXT n = n + 1 ).
+        DATA(lv_equis) = REDUCE i( INIT n = 0 FOR e IN mt_equi  WHERE ( matnr = ls_node-matnr ) NEXT n = n + 1 ).
         add_log( is_node   = ls_node
                  iv_action = zjmqms_cl_lot_equi=>c_action-skipped
                  iv_status = 'E'
-                 iv_msg    = |Kein weiteres Equipment zu Material { ls_node-matnr ALPHA = OUT } im Los| ).
+                 iv_msg    = |Material { ls_node-matnr ALPHA = OUT }: { lv_rows } Strukturzeilen, | &&
+                             |{ lv_equis } Equipments im Los - Zuordnung unklar| ).
+        CONTINUE.
+      ENDIF.
+
+      IF ls_node-equis IS INITIAL.
+        add_log( is_node   = ls_node
+                 iv_action = zjmqms_cl_lot_equi=>c_action-skipped
+                 iv_status = 'E'
+                 iv_msg    = |Kein Equipment zu Material { ls_node-matnr ALPHA = OUT } im Los| ).
         CONTINUE.
       ENDIF.
 
       IF ls_node-ebene = 0.
-        add_log( is_node   = ls_node
-                 iv_action = 'Wurzel'
-                 iv_status = 'S'
-                 iv_msg    = |Wurzel der Struktur, kein Einbau| ).
+        LOOP AT ls_node-equis INTO DATA(ls_root).
+          add_log( is_node   = ls_node
+                   is_equi   = ls_root
+                   iv_action = 'Wurzel'
+                   iv_status = 'S'
+                   iv_msg    = |Wurzel der Struktur, kein Einbau| ).
+        ENDLOOP.
         CONTINUE.
       ENDIF.
 
@@ -246,7 +300,7 @@ CLASS zjmqms_cl_equi_struktur IMPLEMENTATION.
 
       DATA(ls_parent) = lt_nodes[ seqnumber = ls_node-parent_seqnumber ].
 
-      IF ls_parent-sernr IS INITIAL.
+      IF ls_parent-equis IS INITIAL.
         add_log( is_node   = ls_node
                  iv_action = zjmqms_cl_lot_equi=>c_action-skipped
                  iv_status = 'E'
@@ -255,64 +309,108 @@ CLASS zjmqms_cl_equi_struktur IMPLEMENTATION.
         CONTINUE.
       ENDIF.
 
-      " ---- Testmodus: Equipments existieren noch nicht ------------------
-      IF mv_test = abap_true.
-        add_log( is_node   = ls_node
-                 iv_action = 'wuerde eingebaut'
-                 iv_status = 'S'
-                 iv_msg    = |Testmodus: wuerde in Material { ls_parent-matnr ALPHA = OUT } / | &&
-                             |Serialnummer { ls_parent-sernr } (Zeile { ls_parent-seqnumber ALPHA = OUT }) eingebaut| ).
-        CONTINUE.
-      ENDIF.
-
-      IF ls_node-equnr IS INITIAL OR ls_parent-equnr IS INITIAL.
-        add_log( is_node   = ls_node
-                 iv_action = zjmqms_cl_lot_equi=>c_action-skipped
-                 iv_status = 'E'
-                 iv_msg    = |Equipmentnummer fehlt - Anlage im ersten Schritt fehlgeschlagen?| ).
-        CONTINUE.
-      ENDIF.
-
-      " ---- Ist-Zustand pruefen -----------------------------------------
-      DATA(lv_current) = current_superior( ls_node-equnr ).
-
-      IF lv_current = ls_parent-equnr.
-        add_log( is_node   = ls_node
-                 iv_action = zjmqms_cl_lot_equi=>c_action-exists
-                 iv_status = 'S'
-                 iv_msg    = |Bereits in Equipment { ls_parent-equnr ALPHA = OUT } eingebaut| ).
-        CONTINUE.
-      ENDIF.
-
-      IF lv_current IS NOT INITIAL.
-        add_log( is_node   = ls_node
-                 iv_action = zjmqms_cl_lot_equi=>c_action-skipped
-                 iv_status = 'W'
-                 iv_msg    = |Sitzt in Equipment { lv_current ALPHA = OUT }, erwartet | &&
-                             |{ ls_parent-equnr ALPHA = OUT } - kein automatischer Ausbau| ).
-        CONTINUE.
-      ENDIF.
-
-      " ---- Einbauen ----------------------------------------------------
-      DATA(ls_return) = install( iv_equnr   = ls_node-equnr
-                                 iv_supequi = ls_parent-equnr ).
-
-      IF ls_return-type CA 'EAX'.
-        add_log( is_node   = ls_node
-                 iv_action = zjmqms_cl_lot_equi=>c_action-skipped
-                 iv_status = 'E'
-                 iv_msg    = CONV string( ls_return-message ) ).
-        CONTINUE.
-      ENDIF.
-
-      add_log( is_node   = ls_node
-               iv_action = 'eingebaut'
-               iv_status = 'S'
-               iv_msg    = |In Equipment { ls_parent-equnr ALPHA = OUT } eingebaut| ).
+      install_children( is_node   = ls_node
+                        is_parent = ls_parent ).
 
     ENDLOOP.
 
     rt_log = mt_log.
+
+  ENDMETHOD.
+
+
+  METHOD install_children.
+
+    DATA(lv_count) = lines( is_node-equis ).
+
+    LOOP AT is_node-equis INTO DATA(ls_equi).
+      DATA(lv_index) = sy-tabix.
+
+      DATA(ls_supequi) = parent_for_child( it_parents = is_parent-equis
+                                           iv_index   = lv_index
+                                           iv_count   = lv_count ).
+
+      IF ls_supequi IS INITIAL.
+        add_log( is_node   = is_node
+                 is_equi   = ls_equi
+                 iv_action = zjmqms_cl_lot_equi=>c_action-skipped
+                 iv_status = 'E'
+                 iv_msg    = |{ lv_count } Equipments, Elternzeile { is_parent-seqnumber ALPHA = OUT } | &&
+                             |hat { lines( is_parent-equis ) } - Zuordnung unklar| ).
+        CONTINUE.
+      ENDIF.
+
+      install_one( is_node    = is_node
+                   is_equi    = ls_equi
+                   is_parent  = is_parent
+                   is_supequi = ls_supequi ).
+    ENDLOOP.
+
+  ENDMETHOD.
+
+
+  METHOD install_one.
+
+    " ---- Testmodus: Equipments existieren noch nicht ------------------
+    IF mv_test = abap_true.
+      add_log( is_node   = is_node
+               is_equi   = is_equi
+               iv_action = 'wuerde eingebaut'
+               iv_status = 'S'
+               iv_msg    = |Testmodus: wuerde in Material { is_parent-matnr ALPHA = OUT } / | &&
+                           |Serialnummer { is_supequi-sernr } (Zeile { is_parent-seqnumber ALPHA = OUT }) eingebaut| ).
+      RETURN.
+    ENDIF.
+
+    IF is_equi-equnr IS INITIAL OR is_supequi-equnr IS INITIAL.
+      add_log( is_node   = is_node
+               is_equi   = is_equi
+               iv_action = zjmqms_cl_lot_equi=>c_action-skipped
+               iv_status = 'E'
+               iv_msg    = |Equipmentnummer fehlt - Anlage im ersten Schritt fehlgeschlagen?| ).
+      RETURN.
+    ENDIF.
+
+    " ---- Ist-Zustand pruefen -----------------------------------------
+    DATA(lv_current) = current_superior( is_equi-equnr ).
+
+    IF lv_current = is_supequi-equnr.
+      add_log( is_node   = is_node
+               is_equi   = is_equi
+               iv_action = zjmqms_cl_lot_equi=>c_action-exists
+               iv_status = 'S'
+               iv_msg    = |Bereits in Equipment { is_supequi-equnr ALPHA = OUT } eingebaut| ).
+      RETURN.
+    ENDIF.
+
+    IF lv_current IS NOT INITIAL.
+      add_log( is_node   = is_node
+               is_equi   = is_equi
+               iv_action = zjmqms_cl_lot_equi=>c_action-skipped
+               iv_status = 'W'
+               iv_msg    = |Sitzt in Equipment { lv_current ALPHA = OUT }, erwartet | &&
+                           |{ is_supequi-equnr ALPHA = OUT } - kein automatischer Ausbau| ).
+      RETURN.
+    ENDIF.
+
+    " ---- Einbauen ----------------------------------------------------
+    DATA(ls_return) = install( iv_equnr   = is_equi-equnr
+                               iv_supequi = is_supequi-equnr ).
+
+    IF ls_return-type CA 'EAX'.
+      add_log( is_node   = is_node
+               is_equi   = is_equi
+               iv_action = zjmqms_cl_lot_equi=>c_action-skipped
+               iv_status = 'E'
+               iv_msg    = CONV string( ls_return-message ) ).
+      RETURN.
+    ENDIF.
+
+    add_log( is_node   = is_node
+             is_equi   = is_equi
+             iv_action = 'eingebaut'
+             iv_status = 'S'
+             iv_msg    = |In Equipment { is_supequi-equnr ALPHA = OUT } eingebaut| ).
 
   ENDMETHOD.
 
@@ -389,9 +487,10 @@ CLASS zjmqms_cl_equi_struktur IMPLEMENTATION.
     APPEND VALUE zjmqms_cl_lot_equi=>ty_log(
              prueflos = ms_qals-prueflos
              step     = zjmqms_cl_lot_equi=>c_step-struk
+             vornr    = is_equi-vornr
              matnr    = is_node-matnr
-             sernr    = is_node-sernr
-             equnr    = is_node-equnr
+             sernr    = is_equi-sernr
+             equnr    = is_equi-equnr
              action   = iv_action
              status   = iv_status
              msg      = COND #( WHEN is_node-seqnumber IS INITIAL

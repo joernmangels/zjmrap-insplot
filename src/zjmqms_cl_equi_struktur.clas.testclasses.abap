@@ -97,13 +97,14 @@ CLASS ltc_assign_equipments DEFINITION FINAL FOR TESTING
       RETURNING VALUE(rt_nodes) TYPE zjmqms_cl_equi_struktur=>tt_node.
 
     METHODS serials_of
-      IMPORTING it_nodes         TYPE zjmqms_cl_equi_struktur=>tt_node
+      IMPORTING it_equis         TYPE zjmqms_cl_lot_equi=>tt_equi
       RETURNING VALUE(rt_serials) TYPE tt_sernr.
 
-    METHODS gleiches_material_mehrfach FOR TESTING. " 3x Rotorblatt -> 3 Serialnummern
-    METHODS reihenfolge_der_vorgaenge FOR TESTING.  " n-te Zeile = n-tes Equipment
-    METHODS zeile_ohne_equipment FOR TESTING.       " mehr Zeilen als Equipments
-    METHODS equipment_ohne_zeile FOR TESTING.       " mehr Equipments als Zeilen
+    METHODS eine_zeile_alle_equipments FOR TESTING. " 1 Zeile, 3 Equipments -> alle drei
+    METHODS gleich_viele_zeilen FOR TESTING.        " 2 Zeilen, 2 Equipments -> je eins in Reihenfolge
+    METHODS zuordnung_unklar FOR TESTING.           " 2 Zeilen, 3 Equipments -> unklar
+    METHODS zeile_ohne_equipment FOR TESTING.       " kein Equipment -> leer, nicht unklar
+    METHODS equipment_ohne_zeile FOR TESTING.       " Material fehlt in der Struktur
 ENDCLASS.
 
 
@@ -117,55 +118,69 @@ CLASS ltc_assign_equipments IMPLEMENTATION.
   ENDMETHOD.
 
   METHOD serials_of.
-    LOOP AT it_nodes INTO DATA(ls_node).
-      APPEND ls_node-sernr TO rt_serials.
+    LOOP AT it_equis INTO DATA(ls_equi).
+      APPEND ls_equi-sernr TO rt_serials.
     ENDLOOP.
   ENDMETHOD.
 
-  METHOD gleiches_material_mehrfach.
-    DATA(lt_nodes) = nodes_from_materials( VALUE #( ( 'NABE' ) ( 'BLATT' ) ( 'BLATT' ) ( 'BLATT' ) ) ).
+  METHOD eine_zeile_alle_equipments.
+    DATA(lt_nodes) = nodes_from_materials( VALUE #( ( 'NABE' ) ( 'BLATT' ) ) ).
 
     zjmqms_cl_equi_struktur=>assign_equipments(
-      EXPORTING it_equi       = VALUE #( ( vornr = '0010' matnr = 'NABE'  sernr = 'N1' equnr = '1' )
-                                         ( vornr = '0020' matnr = 'BLATT' sernr = 'B1' equnr = '2' )
-                                         ( vornr = '0030' matnr = 'BLATT' sernr = 'B2' equnr = '3' )
-                                         ( vornr = '0040' matnr = 'BLATT' sernr = 'B3' equnr = '4' ) )
+      EXPORTING it_equi       = VALUE #( ( vornr = '0010' matnr = 'NABE'  sernr = 'N1' )
+                                         ( vornr = '0020' matnr = 'BLATT' sernr = 'B1' )
+                                         ( vornr = '0030' matnr = 'BLATT' sernr = 'B2' )
+                                         ( vornr = '0040' matnr = 'BLATT' sernr = 'B3' ) )
       IMPORTING et_unassigned = DATA(lt_free)
       CHANGING  ct_nodes      = lt_nodes ).
 
-    cl_abap_unit_assert=>assert_equals(
-      act = serials_of( lt_nodes )
-      exp = VALUE tt_sernr( ( 'N1' ) ( 'B1' ) ( 'B2' ) ( 'B3' ) ) ).
-    cl_abap_unit_assert=>assert_equals( act = lt_nodes[ 3 ]-equnr exp = '3' ).
+    cl_abap_unit_assert=>assert_equals( act = serials_of( lt_nodes[ 1 ]-equis )
+                                        exp = VALUE tt_sernr( ( 'N1' ) ) ).
+    cl_abap_unit_assert=>assert_equals( act = serials_of( lt_nodes[ 2 ]-equis )
+                                        exp = VALUE tt_sernr( ( 'B1' ) ( 'B2' ) ( 'B3' ) ) ).
+    cl_abap_unit_assert=>assert_initial( lt_nodes[ 2 ]-ambiguous ).
     cl_abap_unit_assert=>assert_initial( lt_free ).
   ENDMETHOD.
 
-  METHOD reihenfolge_der_vorgaenge.
-    " Equipments kommen in Vorgangsreihenfolge; die erste Zeile bekommt das erste
+  METHOD gleich_viele_zeilen.
     DATA(lt_nodes) = nodes_from_materials( VALUE #( ( 'BLATT' ) ( 'BLATT' ) ) ).
 
     zjmqms_cl_equi_struktur=>assign_equipments(
-      EXPORTING it_equi  = VALUE #( ( vornr = '0010' matnr = 'BLATT' sernr = 'SPAET' )
-                                    ( vornr = '0020' matnr = 'BLATT' sernr = 'FRUEH' ) )
+      EXPORTING it_equi  = VALUE #( ( vornr = '0010' matnr = 'BLATT' sernr = 'ERSTES' )
+                                    ( vornr = '0020' matnr = 'BLATT' sernr = 'ZWEITES' ) )
       CHANGING  ct_nodes = lt_nodes ).
 
-    cl_abap_unit_assert=>assert_equals(
-      act = serials_of( lt_nodes )
-      exp = VALUE tt_sernr( ( 'SPAET' ) ( 'FRUEH' ) ) ).
+    cl_abap_unit_assert=>assert_equals( act = serials_of( lt_nodes[ 1 ]-equis )
+                                        exp = VALUE tt_sernr( ( 'ERSTES' ) ) ).
+    cl_abap_unit_assert=>assert_equals( act = serials_of( lt_nodes[ 2 ]-equis )
+                                        exp = VALUE tt_sernr( ( 'ZWEITES' ) ) ).
+  ENDMETHOD.
+
+  METHOD zuordnung_unklar.
+    DATA(lt_nodes) = nodes_from_materials( VALUE #( ( 'BLATT' ) ( 'BLATT' ) ) ).
+
+    zjmqms_cl_equi_struktur=>assign_equipments(
+      EXPORTING it_equi  = VALUE #( ( vornr = '0010' matnr = 'BLATT' sernr = 'B1' )
+                                    ( vornr = '0020' matnr = 'BLATT' sernr = 'B2' )
+                                    ( vornr = '0030' matnr = 'BLATT' sernr = 'B3' ) )
+      CHANGING  ct_nodes = lt_nodes ).
+
+    cl_abap_unit_assert=>assert_true( lt_nodes[ 1 ]-ambiguous ).
+    cl_abap_unit_assert=>assert_true( lt_nodes[ 2 ]-ambiguous ).
+    cl_abap_unit_assert=>assert_initial( lt_nodes[ 1 ]-equis ).
   ENDMETHOD.
 
   METHOD zeile_ohne_equipment.
-    DATA(lt_nodes) = nodes_from_materials( VALUE #( ( 'BLATT' ) ( 'BLATT' ) ) ).
+    DATA(lt_nodes) = nodes_from_materials( VALUE #( ( 'BLATT' ) ( 'KAPPE' ) ) ).
 
     zjmqms_cl_equi_struktur=>assign_equipments(
       EXPORTING it_equi       = VALUE #( ( vornr = '0010' matnr = 'BLATT' sernr = 'B1' ) )
       IMPORTING et_unassigned = DATA(lt_free)
       CHANGING  ct_nodes      = lt_nodes ).
 
-    cl_abap_unit_assert=>assert_equals( act = lt_nodes[ 1 ]-sernr exp = 'B1' ).
-    cl_abap_unit_assert=>assert_initial(
-      act = lt_nodes[ 2 ]-sernr
-      msg = 'Zweite Zeile darf kein Equipment bekommen, es gibt nur eines' ).
+    cl_abap_unit_assert=>assert_initial( act = lt_nodes[ 2 ]-equis
+                                         msg = 'KAPPE hat kein Equipment im Los' ).
+    cl_abap_unit_assert=>assert_initial( lt_nodes[ 2 ]-ambiguous ).
     cl_abap_unit_assert=>assert_initial( lt_free ).
   ENDMETHOD.
 
@@ -174,15 +189,58 @@ CLASS ltc_assign_equipments IMPLEMENTATION.
 
     zjmqms_cl_equi_struktur=>assign_equipments(
       EXPORTING it_equi       = VALUE #( ( vornr = '0010' matnr = 'BLATT' sernr = 'B1' )
-                                         ( vornr = '0020' matnr = 'BLATT' sernr = 'B2' )
-                                         ( vornr = '0030' matnr = 'FREMD' sernr = 'F1' ) )
+                                         ( vornr = '0020' matnr = 'FREMD' sernr = 'F1' ) )
       IMPORTING et_unassigned = DATA(lt_free)
       CHANGING  ct_nodes      = lt_nodes ).
 
-    cl_abap_unit_assert=>assert_equals( act = lt_nodes[ 1 ]-sernr exp = 'B1' ).
-    cl_abap_unit_assert=>assert_equals( act = lines( lt_free ) exp = 2 ).
-    cl_abap_unit_assert=>assert_equals( act = lt_free[ 1 ]-sernr exp = 'B2' ).
-    cl_abap_unit_assert=>assert_equals( act = lt_free[ 2 ]-sernr exp = 'F1' ).
+    cl_abap_unit_assert=>assert_equals( act = serials_of( lt_free )
+                                        exp = VALUE tt_sernr( ( 'F1' ) ) ).
+  ENDMETHOD.
+
+ENDCLASS.
+
+
+CLASS ltc_parent_for_child DEFINITION FINAL FOR TESTING
+  DURATION SHORT RISK LEVEL HARMLESS.
+
+  PRIVATE SECTION.
+    METHODS ein_elternteil_nimmt_alle FOR TESTING. " 1 Eltern, 3 Kinder -> immer dasselbe
+    METHODS paarweise FOR TESTING.                 " 3 Eltern, 3 Kinder -> i-tes zu i-tem
+    METHODS unklar FOR TESTING.                    " 2 Eltern, 3 Kinder -> initial
+ENDCLASS.
+
+
+CLASS ltc_parent_for_child IMPLEMENTATION.
+
+  METHOD ein_elternteil_nimmt_alle.
+    DATA(lt_parents) = VALUE zjmqms_cl_lot_equi=>tt_equi( ( sernr = 'P1' ) ).
+
+    DO 3 TIMES.
+      cl_abap_unit_assert=>assert_equals(
+        act = zjmqms_cl_equi_struktur=>parent_for_child( it_parents = lt_parents
+                                                          iv_index   = sy-index
+                                                          iv_count   = 3 )-sernr
+        exp = 'P1' ).
+    ENDDO.
+  ENDMETHOD.
+
+  METHOD paarweise.
+    DATA(lt_parents) = VALUE zjmqms_cl_lot_equi=>tt_equi( ( sernr = 'P1' ) ( sernr = 'P2' ) ( sernr = 'P3' ) ).
+
+    cl_abap_unit_assert=>assert_equals(
+      act = zjmqms_cl_equi_struktur=>parent_for_child( it_parents = lt_parents
+                                                        iv_index   = 2
+                                                        iv_count   = 3 )-sernr
+      exp = 'P2' ).
+  ENDMETHOD.
+
+  METHOD unklar.
+    DATA(lt_parents) = VALUE zjmqms_cl_lot_equi=>tt_equi( ( sernr = 'P1' ) ( sernr = 'P2' ) ).
+
+    cl_abap_unit_assert=>assert_initial(
+      zjmqms_cl_equi_struktur=>parent_for_child( it_parents = lt_parents
+                                                  iv_index   = 1
+                                                  iv_count   = 3 ) ).
   ENDMETHOD.
 
 ENDCLASS.

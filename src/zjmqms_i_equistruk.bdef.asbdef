@@ -23,6 +23,12 @@ early numbering
   action nachUnten;
   action setPosition parameter ZJMQMS_A_SET_POSITION;
 
+  // Baut die Struktur eines Plans aus den Vorgangskurztexten neu auf.
+  // Statisch, weil der Plan beim ersten Einlesen noch keine Zeile hat -
+  // der Planschluessel kommt deshalb im Parameter mit.
+  static action ersteinlesen parameter ZJMQMS_A_ERSTEINLESUNG
+                             result [1] ZJMQMS_A_EINLESEN_ERG;
+
   determination normalizeMaterial on modify { create;
                                               field MatEbene00, MatEbene01, MatEbene02, MatEbene03,
                                                     MatEbene04, MatEbene05, MatEbene06, MatEbene07,

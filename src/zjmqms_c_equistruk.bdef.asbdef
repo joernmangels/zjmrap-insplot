@@ -14,4 +14,6 @@ define behavior for ZJMQMS_C_EQUISTRUK alias EquiStruk
   use action nachOben;
   use action nachUnten;
   use action setPosition;
+
+  use action ersteinlesen;
 }

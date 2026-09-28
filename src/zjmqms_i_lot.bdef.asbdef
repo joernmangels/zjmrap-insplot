@@ -1,0 +1,13 @@
+unmanaged implementation in class zjmqms_bp_lot unique;
+strict ( 2 );
+
+// Nur Lesen und die Aktion: Der Lauf schreibt nicht ueber RAP, sondern
+// per RFC in eigener LUW (ZJMQMS_RUN_STRUKTUR), weil die Klassen committen
+define behavior for ZJMQMS_I_LOT alias Lot
+lock master
+authorization master ( global )
+{
+  field ( readonly ) Prueflos;
+
+  action aufbauen parameter ZJMQMS_A_AUFBAU result [1] ZJMQMS_A_RUN;
+}

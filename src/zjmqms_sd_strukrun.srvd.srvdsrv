@@ -1,0 +1,8 @@
+@EndUserText.label: 'Service Definition Strukturaufbau'
+define service ZJMQMS_SD_STRUKRUN {
+  expose ZJMQMS_I_LOT         as Lot;
+  expose ZJMQMS_I_STRUKLOG    as StrukLog;
+  expose ZJMQMS_I_WERK_VH     as WerkVH;
+  expose ZJMQMS_I_PRUEFART_VH as PruefartVH;
+  expose ZJMQMS_I_MAT_VH      as MaterialVH;
+}

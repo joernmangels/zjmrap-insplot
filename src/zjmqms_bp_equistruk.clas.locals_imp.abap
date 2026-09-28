@@ -111,10 +111,219 @@ CLASS lhc_equistruk DEFINITION INHERITING FROM cl_abap_behavior_handler.
                 iv_target   TYPE i DEFAULT -1
       EXPORTING et_problems TYPE tt_problems.
 
+    TYPES: BEGIN OF ty_plan_op,
+             vornr    TYPE vornr,
+             text     TYPE plpo-ltxa1,
+             level    TYPE i,
+             material TYPE matnr,
+           END OF ty_plan_op,
+           tt_plan_op TYPE STANDARD TABLE OF ty_plan_op WITH EMPTY KEY.
+
+    TYPES ty_create TYPE STRUCTURE FOR CREATE zjmqms_i_equistruk.
+
+    METHODS ersteinlesen FOR MODIFY
+      IMPORTING keys FOR ACTION equistruk~ersteinlesen RESULT result.
+
+    "! Vorgaenge des Pruefplans mit ausgewerteter Ebene und Materialnummer,
+    "! in Vorgangsreihenfolge.
+    "!
+    "! Der erste Vorgang traegt laut Vorgabe das Material der obersten Ebene,
+    "! die uebrigen nennen ihre Ebene im Kurztext. Die Materialnummer steht
+    "! jeweils in den ersten sieben Stellen.
+    METHODS read_plan_operations
+      IMPORTING is_param      TYPE zjmqms_a_ersteinlesung
+      RETURNING VALUE(rt_ops) TYPE tt_plan_op.
+
+    "! Ebene aus einem Vorgangskurztext: "1076780 2. Ebene" liefert 2.
+    "! -1, wenn der Text keine Ebenenangabe enthaelt.
+    CLASS-METHODS level_of_text
+      IMPORTING iv_text         TYPE clike
+      RETURNING VALUE(rv_level) TYPE i.
+
 ENDCLASS.
 
 
 CLASS lhc_equistruk IMPLEMENTATION.
+
+
+  METHOD ersteinlesen.
+
+    DATA deletes TYPE TABLE FOR DELETE zjmqms_i_equistruk.
+    DATA creates TYPE TABLE FOR CREATE zjmqms_i_equistruk.
+
+    LOOP AT keys INTO DATA(key).
+
+      DATA(param)   = key-%param.
+      DATA(deleted) = 0.
+      DATA(created) = 0.
+      DATA(skipped) = 0.
+
+      DATA(ops) = read_plan_operations( param ).
+
+      IF ops IS INITIAL.
+        APPEND new_message_with_text(
+                 severity = if_abap_behv_message=>severity-error
+                 text     = |Pruefplan hat keine Vorgaenge| )
+               TO reported-%other.
+        APPEND VALUE #( %cid = key-%cid ) TO result.
+        CONTINUE.
+      ENDIF.
+
+      " ---- Bestehende Zeilen des Plans entfernen -----------------------
+      read_plan_rows( EXPORTING is_key  = VALUE #( plantype     = param-plantype
+                                                   plangroup    = param-plangroup
+                                                   groupcounter = param-groupcounter
+                                                   nodecounter  = param-nodecounter )
+                      IMPORTING et_rows = DATA(existing) ).
+
+      CLEAR deletes.
+      LOOP AT existing ASSIGNING FIELD-SYMBOL(<old>).
+        APPEND VALUE #( %tky = <old>-%tky ) TO deletes.
+      ENDLOOP.
+
+      IF deletes IS NOT INITIAL.
+        MODIFY ENTITIES OF zjmqms_i_equistruk IN LOCAL MODE
+          ENTITY equistruk
+            DELETE FROM deletes
+          REPORTED DATA(delete_reported).
+
+        deleted = lines( deletes ).
+      ENDIF.
+
+      " ---- Zeilen aus den Vorgaengen aufbauen --------------------------
+      CLEAR creates.
+      DATA(seq) = 0.
+
+      LOOP AT ops INTO DATA(op).
+
+        IF op-material IS INITIAL.
+          skipped = skipped + 1.
+          APPEND new_message_with_text(
+                   severity = if_abap_behv_message=>severity-warning
+                   text     = |Vorgang { op-vornr }: kein Material im Kurztext| )
+                 TO reported-%other.
+          CONTINUE.
+        ENDIF.
+
+        IF op-level < 0 OR op-level > c_max_level.
+          skipped = skipped + 1.
+          APPEND new_message_with_text(
+                   severity = if_abap_behv_message=>severity-warning
+                   text     = |Vorgang { op-vornr }: keine gueltige Ebene im Kurztext| )
+                 TO reported-%other.
+          CONTINUE.
+        ENDIF.
+
+        seq = seq + 1.
+
+        DATA(new_row) = VALUE ty_create( %cid         = |EIN{ seq }|
+                                         plantype     = param-plantype
+                                         plangroup    = param-plangroup
+                                         groupcounter = param-groupcounter
+                                         nodecounter  = param-nodecounter
+                                         seqnumber    = seq ).
+
+        ASSIGN COMPONENT |MATEBENE{ op-level WIDTH = 2 ALIGN = RIGHT PAD = '0' }|
+               OF STRUCTURE new_row TO FIELD-SYMBOL(<level_field>).
+        IF sy-subrc = 0.
+          <level_field> = op-material.
+        ENDIF.
+
+        APPEND new_row TO creates.
+
+      ENDLOOP.
+
+      IF creates IS NOT INITIAL.
+        MODIFY ENTITIES OF zjmqms_i_equistruk IN LOCAL MODE
+          ENTITY equistruk
+            CREATE FIELDS ( plantype plangroup groupcounter nodecounter seqnumber
+                            matebene00 matebene01 matebene02 matebene03 matebene04
+                            matebene05 matebene06 matebene07 matebene08 matebene09
+                            matebene10 matebene11 matebene12 matebene13 matebene14
+                            matebene15 matebene16 matebene17 matebene18 matebene19 )
+            WITH creates
+          MAPPED DATA(create_mapped)
+          FAILED DATA(create_failed)
+          REPORTED DATA(create_reported).
+
+        created = lines( create_mapped-equistruk ).
+
+        IF create_failed-equistruk IS NOT INITIAL.
+          APPEND new_message_with_text(
+                   severity = if_abap_behv_message=>severity-error
+                   text     = |{ lines( create_failed-equistruk ) } Zeilen abgelehnt| )
+                 TO reported-%other.
+        ENDIF.
+      ENDIF.
+
+      APPEND VALUE #( %cid   = key-%cid
+                      %param = VALUE #( deleted = deleted
+                                        created = created
+                                        skipped = skipped ) ) TO result.
+
+    ENDLOOP.
+
+  ENDMETHOD.
+
+
+  METHOD read_plan_operations.
+
+    " Ueber den Kopf einsteigen, damit der Planzaehler die Version festlegt.
+    " Geloeschte Folgen und Vorgaenge bleiben aussen vor.
+    SELECT s~plnfl, p~vornr, p~ltxa1
+      FROM plko AS k
+           INNER JOIN plas AS s ON  s~plnty = k~plnty
+                                AND s~plnnr = k~plnnr
+                                AND s~plnal = k~plnal
+           INNER JOIN plpo AS p ON  p~plnty = s~plnty
+                                AND p~plnnr = s~plnnr
+                                AND p~plnkn = s~plnkn
+                                AND p~zaehl = s~zaehl
+      WHERE k~plnty = @is_param-plantype
+        AND k~plnnr = @is_param-plangroup
+        AND k~plnal = @is_param-groupcounter
+        AND k~zaehl = @is_param-nodecounter
+        AND s~loekz = @space
+        AND p~loekz = @space
+      ORDER BY s~plnfl, p~vornr
+      INTO TABLE @DATA(rows).
+
+    LOOP AT rows INTO DATA(row).
+
+      DATA(op) = VALUE ty_plan_op( vornr    = row-vornr
+                                   text     = row-ltxa1
+                                   material = zjmqms_cl_lot_equi=>material_of_text( row-ltxa1 ) ).
+
+      " Der erste Vorgang ist die Wurzel, seine Ebene steht nicht im Text
+      op-level = COND #( WHEN sy-tabix = 1 THEN 0
+                                           ELSE level_of_text( row-ltxa1 ) ).
+
+      APPEND op TO rt_ops.
+
+    ENDLOOP.
+
+  ENDMETHOD.
+
+
+  METHOD level_of_text.
+
+    DATA lv_prefix TYPE string.
+    DATA lv_digits TYPE string.
+
+    rv_level = -1.
+
+    " Ein- oder zweistellige Zahl vor ".Ebene", am Textanfang oder nach einem
+    " Leerzeichen - so wird die Materialnummer davor nicht mitgelesen.
+    FIND PCRE '(^|\s)(\d{1,2})\s*\.\s*Ebene' IN iv_text
+         IGNORING CASE
+         SUBMATCHES lv_prefix lv_digits.
+
+    IF sy-subrc = 0.
+      rv_level = CONV i( lv_digits ).
+    ENDIF.
+
+  ENDMETHOD.
+
 
   METHOD nachoben.
 

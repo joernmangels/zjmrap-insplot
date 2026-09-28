@@ -51,8 +51,14 @@ Plan Q/00000004/02 → 7 gelöscht, 7 angelegt, 4 übersprungen.
 
 **Im Kundensystem nachgezogen und erfolgreich getestet** (28.09.2026). Dort
 heißen die Objekte `/ENERCON/QM009_A_ERSTEINLES`, `/ENERCON/QM009_A_EINLES_ERG`,
-Handler in `/ENERCON/BP_QM009_I_EQUISTRUK`. In VID selbst ist die Funktion nur
-über den lokalen Entwicklungsserver erprobt — dort ist die App nicht deployt.
+Handler in `/ENERCON/BP_QM009_I_EQUISTRUK`.
+
+### Deployment VID-200 (28.09.2026)
+
+BSP `ZJMQMS_EQUISTR` in Paket `ZJMRAP_INSPLOT`, Transport `VIDK901614`, per
+`fiori deploy` angelegt, Anwendungsindex aktualisiert. Aufruf:
+`https://vid.varelmann.de:44300/sap/bc/ui5_ui5/sap/zjmqms_equistr/index.html?sap-client=200`.
+Hinweis: `fiori deploy` fragt interaktiv nach — ohne Terminal `--yes` anhängen.
 
 ### Prüfungen
 

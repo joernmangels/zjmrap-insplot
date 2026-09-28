@@ -1,6 +1,6 @@
 # Arbeitsstand
 
-Stand: 28.08.2026 · Fortsetzungspunkt für die nächste Sitzung.
+Stand: 28.09.2026 · Fortsetzungspunkt für die nächste Sitzung.
 Fachliche und technische Hintergründe stehen in [README.md](README.md);
 hier steht nur, **was fertig ist und was noch aussteht**.
 
@@ -49,7 +49,10 @@ PLKO → PLAS → PLPO, am Planzähler verankert.
 Sonde `ZJMQMS_CL_PROBE_EINLES` (`$TMP`, HARMLESS, ohne `COMMIT ENTITIES`) grün:
 Plan Q/00000004/02 → 7 gelöscht, 7 angelegt, 4 übersprungen.
 
-**Im Browser noch nicht getestet.**
+**Im Kundensystem nachgezogen und erfolgreich getestet** (28.09.2026). Dort
+heißen die Objekte `/ENERCON/QM009_A_ERSTEINLES`, `/ENERCON/QM009_A_EINLES_ERG`,
+Handler in `/ENERCON/BP_QM009_I_EQUISTRUK`. In VID selbst ist die Funktion nur
+über den lokalen Entwicklungsserver erprobt — dort ist die App nicht deployt.
 
 ### Prüfungen
 
@@ -79,13 +82,12 @@ im README. Über die ADT-Schreib-API nicht anlegbar — DDLX wird nicht unterst�
 Wirkt nur auf die ADT-Service-Vorschau und Fiori Elements, **nicht** auf die
 freestyle-App.
 
-### 2 · Frontend nach GitHub — erledigt, aber Nachzügler offen
+### 2 · Frontend nach GitHub — erledigt
 
-Der erste Push ist erfolgt: **dasselbe Repo wie die ABAP-Objekte**, Frontend im
-Unterordner **`ui5_equi_struk/`**, Repo **öffentlich**.
-
-Der Namensraum `de.enercon.qm009.equistruk` war zu diesem Zeitpunkt bereits
-umgestellt und ist mit im ersten Commit.
+Das Frontend liegt im **selben Repo wie die ABAP-Objekte**, Unterordner
+**`ui5_equi_struk/`**, Repo **öffentlich**. Der frühere Arbeitsordner
+`ZJMRAP_INSPLOT_MAINTAIN_EQUI_STRUK` ist vollständig übernommen (am 28.09.2026
+abgeglichen) und wird nicht mehr verwendet.
 
 Aus der abapGit-Ablage im System ausgelesen:
 
@@ -100,9 +102,6 @@ Deshalb bereits erledigt:
 - `.gitignore` schließt `node_modules/`, `ui5.yaml`, `ui5-deploy.yaml` aus
 - Vorlagen `ui5.yaml.example` und `ui5-deploy.yaml.example` angelegt
 - README von Hostname, Mandant und Transportnummer befreit
-
-Noch zu tun: Repo klonen, `ui5_equi_struk/` befüllen, committen, pushen.
-Befehlsfolge stand im Chat.
 
 ### 3 · Launchpad-Konfiguration im Zielsystem
 
@@ -139,7 +138,7 @@ und im Transport `VIDK901614`.
 
 Unit-Tests: `ZJMQMS_CL_EQUI_STRUKTUR` → `LTC_RESOLVE_PARENTS` (5),
 `LTC_ASSIGN_EQUIPMENTS` (5), `LTC_PARENT_FOR_CHILD` (3), alle grün. Quellen
-gespiegelt in `abap/`.
+liegen per abapGit in [`src/`](../src/).
 
 **Zuordnung Strukturzeile → Equipment (17.09.2026, zweimal auf Wunsch geändert):**
 Eine Strukturzeile ist eine Vorlage und bekommt **alle** Equipments ihres

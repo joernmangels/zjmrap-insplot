@@ -57,7 +57,8 @@ Handler in `/ENERCON/BP_QM009_I_EQUISTRUK`.
 
 BSP `ZJMQMS_EQUISTR` in Paket `ZJMRAP_INSPLOT`, Transport `VIDK901614`, per
 `fiori deploy` angelegt, Anwendungsindex aktualisiert. Aufruf:
-`https://vid.varelmann.de:44300/sap/bc/ui5_ui5/sap/zjmqms_equistr/index.html?sap-client=200`.
+`/sap/bc/ui5_ui5/sap/zjmqms_equistr/index.html` auf dem VID-Host, Mandant 200
+(Host und Port stehen in der lokalen `ui5-deploy.yaml`).
 Hinweis: `fiori deploy` fragt interaktiv nach — ohne Terminal `--yes` anhängen.
 
 ### Prüfungen

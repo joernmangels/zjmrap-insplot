@@ -22,3 +22,6 @@ Thumbs.db
 # Transportauftrag. Vorlagen liegen als *.example im Repository.
 ui5.yaml
 ui5-deploy.yaml
+
+# Upload-Paket von fiori deploy
+archive.zip

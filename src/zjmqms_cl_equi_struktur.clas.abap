@@ -493,9 +493,15 @@ CLASS zjmqms_cl_equi_struktur IMPLEMENTATION.
              equnr    = is_equi-equnr
              action   = iv_action
              status   = iv_status
-             msg      = COND #( WHEN is_node-seqnumber IS INITIAL
-                                THEN iv_msg
-                                ELSE |Zeile { is_node-seqnumber ALPHA = OUT } (Ebene { is_node-ebene }): { iv_msg }| ) )
+             " ALPHA = OUT auf 40-stelligen Feldern laesst Leerzeichen
+             " stehen: vor Satzzeichen entfernen, sonst auf eins kuerzen
+             msg      = condense( replace(
+                            val  = COND string( WHEN is_node-seqnumber IS INITIAL
+                                                THEN iv_msg
+                                                ELSE |Zeile { is_node-seqnumber ALPHA = OUT } (Ebene { is_node-ebene }): { iv_msg }| )
+                            pcre = `\s+(?=[,.:;)])`
+                            with = ``
+                            occ  = 0 ) ) )
            TO mt_log.
   ENDMETHOD.
 

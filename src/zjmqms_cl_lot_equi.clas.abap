@@ -479,7 +479,12 @@ CLASS zjmqms_cl_lot_equi IMPLEMENTATION.
                          equnr    = is_equi-equnr
                          action   = is_equi-action
                          status   = iv_status
-                         msg      = iv_msg )
+                         " ALPHA = OUT auf 40-stelligen Feldern laesst Leerzeichen
+                         " stehen: vor Satzzeichen entfernen, sonst auf eins kuerzen
+                         msg      = condense( replace( val  = iv_msg
+                                                       pcre = `\s+(?=[,.:;)])`
+                                                       with = ``
+                                                       occ  = 0 ) ) )
            TO mt_log.
   ENDMETHOD.
 

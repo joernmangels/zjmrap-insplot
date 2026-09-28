@@ -70,6 +70,13 @@ FUNCTION zjmqms_run_struktur.
                      created_by = sy-uname
                      created_at = lv_now ) ).
 
+  " Simulationen sind nach der naechsten wertlos: je Los nur die letzte
+  " behalten. Echtlaeufe bleiben als Nachweis stehen.
+  IF iv_test = abap_true.
+    DELETE FROM zjmqms_struklog WHERE prueflos = @iv_prueflos
+                                  AND testmode = @abap_true.
+  ENDIF.
+
   INSERT zjmqms_struklog FROM TABLE @lt_db.
   COMMIT WORK.
 

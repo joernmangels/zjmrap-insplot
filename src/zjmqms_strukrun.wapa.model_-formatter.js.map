@@ -1,0 +1,2 @@
+{"version":3,"file":"formatter.js","names":["sap","ui","define","STATE","S","W","E","ICON","statusState","sStatus","statusIcon"],"sources":["formatter-dbg.js"],"mappings":"AAAAA,IAAIC,GAAGC,OAAO,GAAI,KACd,aAGA,MAAMC,EAAQ,CAAEC,EAAG,UAAWC,EAAG,UAAWC,EAAG,+
+SAC/C,MAAMC,EAAO,CAAEH,EAAG,6BAA8BC,EAAG,6BAA8BC,EAAG,4BAEpF,MAAO,CAEH,WAAAE,CAAYC,GACR,OAAON,EAAMM,IAAY,MAC7B,EAEA,UAAAC,CAAWD,GACP,OAAOF,EAAKE,IAAY,EAC5B","ignoreList":[]}                                                                                  

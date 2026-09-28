@@ -1,0 +1,3 @@
+sap.ui.define([],()=>{"use strict";const s={S:"Success",W:"Warning",E:"Error"};const e={S:"sap-icon://message-success",W:"sap-icon://message-warning",E:"sap-icon://message-error"};return{statusState(e){return s[e]||"None"},statusIcon(s){return e[s]||""}}+
+});                                                                                                                                                                                                                                                            
+//# sourceMappingURL=formatter.js.map                                                                                                                                                                                                                          

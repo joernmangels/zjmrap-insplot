@@ -1,0 +1,17 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<abapGit version="v1.0.0" serializer="LCL_OBJECT_SICF" serializer_version="v1.0.0">
+ <asx:abap xmlns:asx="http://www.sap.com/abapxml" version="1.0">
+  <asx:values>
+   <URL>/sap/bc/bsp/sap/zjmqms_strukrun/</URL>
+   <ICFSERVICE>
+    <ICF_NAME>ZJMQMS_STRUKRUN</ICF_NAME>
+    <ORIG_NAME>zjmqms_strukrun</ORIG_NAME>
+   </ICFSERVICE>
+   <ICFDOCU>
+    <ICF_NAME>ZJMQMS_STRUKRUN</ICF_NAME>
+    <ICF_LANGU>D</ICF_LANGU>
+    <ICF_DOCU>Equi-Struktur aufbauen zum Prueflos</ICF_DOCU>
+   </ICFDOCU>
+  </asx:values>
+ </asx:abap>
+</abapGit>

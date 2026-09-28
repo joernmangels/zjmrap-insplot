@@ -1,0 +1,81 @@
+<mvc:View controllerName="de.enercon.qm009.strukrun.controller.RunLog"
+    xmlns:mvc="sap.ui.core.mvc"
+    xmlns="sap.m">
+    <Page id="page" title="{i18n>runLogTitle}"
+          showNavButton="true"
+          navButtonPress=".onNavBack">
+        <content>
+            <!-- Deep-Link auf eine RunId ohne Protokollzeilen -->
+            <MessageStrip id="notFoundStrip" type="Warning" showIcon="true"
+                          text="{i18n>runLogNotFound}" visible="{view>/notFound}"
+                          class="sapUiSmallMargin"/>
+
+            <!-- Kopf: an Zeile Seq=1 gebunden (Controller), alle Zeilen eines
+                 Laufs tragen dasselbe Los, denselben Modus und Zeitpunkt -->
+            <ObjectHeader id="runHeader"
+                          visible="{= !${view>/notFound} }"
+                          title="{i18n>runLogPrueflos} {Prueflos}"
+                          responsive="true">
+                <statuses>
+                    <!-- Simulation deutlich kennzeichnen, sonst haelt man sie fuer einen Echtlauf -->
+                    <ObjectStatus id="modeStatus"
+                                  text="{= ${Testmodus} ? ${i18n>runModeSimulation} : ${i18n>runModeEchtlauf} }"
+                                  state="{= ${Testmodus} ? 'Information' : 'Success' }"
+                                  inverted="true"/>
+                </statuses>
+                <attributes>
+                    <ObjectAttribute id="materialAttr" title="{i18n>colMaterial}" text="{_Lot/Material} {_Lot/MaterialText}"/>
+                    <ObjectAttribute id="createdAtAttr" title="{i18n>runLogErstelltAm}" text="{ErstelltAm}"/>
+                    <ObjectAttribute id="createdByAttr" title="{i18n>runLogErstelltVon}" text="{ErstelltVon}"/>
+                    <ObjectAttribute id="runIdAttr" title="{i18n>runLogRunId}" text="{RunId}"/>
+                </attributes>
+            </ObjectHeader>
+
+            <!-- suspended: erst laden, wenn der Controller den RunId-Filter gesetzt hat -->
+            <Table id="logTable"
+                   visible="{= !${view>/notFound} }"
+                   growing="true"
+                   growingThreshold="100"
+                   noDataText="{i18n>runLogNoData}"
+                   updateFinished=".onLogTableUpdated"
+                   items="{
+                       path: '/StrukLog',
+                       parameters: { $count: true },
+                       suspended: true,
+                       sorter: { path: 'Seq' }
+                   }">
+                <headerToolbar>
+                    <OverflowToolbar id="logToolbar">
+                        <Title id="logTableTitle" text="{i18n>logTableTitle} ({view>/logCount})"/>
+                    </OverflowToolbar>
+                </headerToolbar>
+                <columns>
+                    <Column id="colSeq" width="3rem" hAlign="End"><Text id="hdrSeq" text="{i18n>colSeq}"/></Column>
+                    <Column id="colSchritt" width="5rem"><Text id="hdrSchritt" text="{i18n>colSchritt}"/></Column>
+                    <Column id="colAktion" width="11rem"><Text id="hdrAktion" text="{i18n>colAktion}"/></Column>
+                    <Column id="colVorgang" width="5rem" minScreenWidth="Tablet" demandPopin="true"><Text id="hdrVorgang" text="{i18n>colVorgang}"/></Column>
+                    <Column id="colLogMaterial" minScreenWidth="Tablet" demandPopin="true"><Text id="hdrLogMaterial" text="{i18n>colMaterial}"/></Column>
+                    <Column id="colSernr" minScreenWidth="Tablet" demandPopin="true"><Text id="hdrSernr" text="{i18n>colSerialnummer}"/></Column>
+                    <Column id="colEqunr" minScreenWidth="Tablet" demandPopin="true"><Text id="hdrEqunr" text="{i18n>colEquipment}"/></Column>
+                    <Column id="colMeldung" minScreenWidth="Tablet" demandPopin="true"><Text id="hdrMeldung" text="{i18n>colMeldung}"/></Column>
+                </columns>
+                <items>
+                    <ColumnListItem id="logItem">
+                        <cells>
+                            <Text id="cellSeq" text="{Seq}"/>
+                            <Text id="cellSchritt" text="{Schritt}"/>
+                            <ObjectStatus id="cellAktion" text="{Aktion}"
+                                          state="{path: 'Status', formatter: '.formatter.statusState'}"
+                                          icon="{path: 'Status', formatter: '.formatter.statusIcon'}"/>
+                            <Text id="cellVorgang" text="{Vorgang}"/>
+                            <Text id="cellLogMaterial" text="{Material}"/>
+                            <Text id="cellSernr" text="{Serialnummer}"/>
+                            <Text id="cellEqunr" text="{Equipment}"/>
+                            <Text id="cellMeldung" text="{Meldung}"/>
+                        </cells>
+                    </ColumnListItem>
+                </items>
+            </Table>
+        </content>
+    </Page>
+</mvc:View>

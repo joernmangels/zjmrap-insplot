@@ -1,0 +1,197 @@
+sap.ui.define([
+    "sap/ui/core/mvc/Controller",
+    "sap/ui/model/Filter",
+    "sap/ui/model/FilterOperator",
+    "sap/ui/core/format/DateFormat",
+    "sap/m/SelectDialog",
+    "sap/m/StandardListItem",
+    "sap/m/MessageBox",
+    "sap/ui/model/json/JSONModel"
+], (Controller, Filter, FilterOperator, DateFormat, SelectDialog, StandardListItem, MessageBox, JSONModel) => {
+    "use strict";
+
+    // Edm.Date erwartet im Filter einen String "yyyy-MM-dd", kein Date-Objekt
+    const oEdmDate = DateFormat.getDateInstance({ pattern: "yyyy-MM-dd" });
+
+    // Namensraum der Aktionen laut $metadata; beim Kunden heisst der Service
+    // anders, dann hier anpassen (PLAN.md, Risiko 3)
+    const ACTION_NS = "com.sap.gateway.srvd.zjmqms_sd_strukrun.v0001.";
+
+    // Je Filterfeld: woraus die Wertehilfe liest und welche Eigenschaft
+    // uebernommen wird. Gesucht wird per $search (@Search im Backend).
+    const VALUE_HELP = {
+        prueflosInput: { title: "vhPrueflos", path: "/Lot", key: "Prueflos", text: "MaterialText" },
+        werkInput: { title: "vhWerk", path: "/WerkVH", key: "Werk", text: "WerkName" },
+        pruefartInput: { title: "vhPruefart", path: "/PruefartVH", key: "Pruefart", text: "PruefartText" },
+        // $search findet die Materialnummer nicht (intern mit fuehrenden
+        // Nullen), daher Zahlen per $filter - dort ergaenzt das Gateway sie
+        materialInput: { title: "vhMaterial", path: "/MaterialVH", key: "Material", text: "MaterialName",
+            numberAsFilter: true }
+    };
+
+    return Controller.extend("de.enercon.qm009.strukrun.controller.LotList", {
+        onInit() {
+            this._mValueHelpDialogs = {};
+            this.getView().setModel(new JSONModel({ selectedCount: 0, lotCount: 0 }), "view");
+        },
+
+        onLotTableUpdated(oEvent) {
+            // Gesamtzahl der Treffer ($count), nicht nur die geladenen Zeilen
+            this.getView().getModel("view").setProperty("/lotCount", oEvent.getParameter("total"));
+        },
+
+        onSelectionChange() {
+            this._updateSelectedCount();
+        },
+
+        _updateSelectedCount() {
+            const iCount = this.byId("lotTable").getSelectedContexts().length;
+            this.getView().getModel("view").setProperty("/selectedCount", iCount);
+        },
+
+        onSimulate() {
+            this._runAufbau(false);
+        },
+
+        onBuild() {
+            const oLot = this.byId("lotTable").getSelectedContexts()[0];
+            if (!oLot) {
+                return;
+            }
+
+            // Echtlauf legt Equipments an und baut sie ein - daher Rueckfrage
+            // mit der Losnummer und "Abbrechen" als Vorbelegung
+            const oBundle = this.getOwnerComponent().getModel("i18n").getResourceBundle();
+            MessageBox.confirm(oBundle.getText("buildConfirm", [oLot.getProperty("Prueflos")]), {
+                title: oBundle.getText("buildConfirmTitle"),
+                emphasizedAction: MessageBox.Action.CANCEL,
+                onClose: (sAction) => {
+                    if (sAction === MessageBox.Action.OK) {
+                        this._runAufbau(true);
+                    }
+                }
+            });
+        },
+
+        /**
+         * Ruft die Aktion "aufbauen" fuer das markierte Los auf und springt
+         * danach ins Protokoll. Ein Los je Lauf (PLAN.md, Schritt 10).
+         * Ohne Echtlauf simuliert das Backend nur, geschrieben wird dann
+         * allein das Protokoll.
+         */
+        async _runAufbau(bEchtlauf) {
+            const oLot = this.byId("lotTable").getSelectedContexts()[0];
+            if (!oLot) {
+                return;
+            }
+
+            // Gebundene Aktion: der Los-Kontext liefert den Schluessel (_it)
+            const oOperation = oLot.getModel().bindContext(ACTION_NS + "aufbauen(...)", oLot);
+            oOperation.setParameter("Echtlauf", bEchtlauf);
+
+            const oView = this.getView();
+            oView.setBusy(true);
+            try {
+                await oOperation.execute();
+                // Ergebnis ist der Complex Type ZJMQMS_A_RUN mit der Lauf-ID
+                const sRunId = oOperation.getBoundContext().getProperty("RunId");
+                this.getOwnerComponent().getRouter().navTo("RouteRunLog", { RunId: sRunId });
+            } catch (oError) {
+                const oBundle = this.getOwnerComponent().getModel("i18n").getResourceBundle();
+                MessageBox.error(oBundle.getText("runFailed", [oLot.getProperty("Prueflos"), oError.message]));
+            } finally {
+                oView.setBusy(false);
+            }
+        },
+
+        onValueHelp(oEvent) {
+            const oInput = oEvent.getSource();
+            const sInputId = this.getView().getLocalId(oInput.getId());
+            const oDialog = this._getValueHelpDialog(sInputId, oInput);
+
+            // Mit dem bisherigen Feldinhalt als Suchbegriff oeffnen
+            const sValue = oInput.getValue().trim();
+            this._searchValueHelp(oDialog, VALUE_HELP[sInputId], sValue);
+            oDialog.open(sValue);
+        },
+
+        _getValueHelpDialog(sInputId, oInput) {
+            if (this._mValueHelpDialogs[sInputId]) {
+                return this._mValueHelpDialogs[sInputId];
+            }
+
+            const oConfig = VALUE_HELP[sInputId];
+            const oBundle = this.getOwnerComponent().getModel("i18n").getResourceBundle();
+            const oDialog = new SelectDialog({
+                title: oBundle.getText(oConfig.title),
+                growing: true,
+                growingThreshold: 50,
+                items: {
+                    path: oConfig.path,
+                    template: new StandardListItem({
+                        title: `{${oConfig.key}}`,
+                        description: `{${oConfig.text}}`
+                    })
+                },
+                search: (oSearchEvent) => {
+                    this._searchValueHelp(oDialog, oConfig, oSearchEvent.getParameter("value"));
+                },
+                confirm: (oConfirmEvent) => {
+                    const oItem = oConfirmEvent.getParameter("selectedItem");
+                    if (oItem) {
+                        oInput.setValue(oItem.getTitle());
+                    }
+                }
+            });
+
+            // Als abhaengiges Element erbt der Dialog Modelle und Lebensdauer der View
+            this.getView().addDependent(oDialog);
+            this._mValueHelpDialogs[sInputId] = oDialog;
+            return oDialog;
+        },
+
+        _searchValueHelp(oDialog, oConfig, sValue) {
+            const oBinding = oDialog.getBinding("items");
+            const sTerm = (sValue || "").trim();
+
+            if (oConfig.numberAsFilter && /^\d+$/.test(sTerm)) {
+                oBinding.changeParameters({ $search: undefined });
+                oBinding.filter(new Filter(oConfig.key, FilterOperator.EQ, sTerm));
+            } else {
+                // Leerer Suchbegriff: $search entfernen, dann alle Treffer
+                oBinding.filter([]);
+                oBinding.changeParameters({ $search: sTerm || undefined });
+            }
+        },
+
+        onSearch() {
+            const aFilter = [];
+
+            const addEq = (sInputId, sPath) => {
+                const sValue = this.byId(sInputId).getValue().trim().toUpperCase();
+                if (sValue) {
+                    aFilter.push(new Filter(sPath, FilterOperator.EQ, sValue));
+                }
+            };
+            addEq("prueflosInput", "Prueflos");
+            addEq("werkInput", "Werk");
+            addEq("pruefartInput", "Pruefart");
+            addEq("materialInput", "Material");
+
+            // Nur "von" gewaehlt: dann genau dieser Tag
+            const oRange = this.byId("datumRange");
+            const dFrom = oRange.getDateValue();
+            if (dFrom) {
+                const dTo = oRange.getSecondDateValue() || dFrom;
+                aFilter.push(new Filter("Entstehungsdatum", FilterOperator.BT,
+                    oEdmDate.format(dFrom), oEdmDate.format(dTo)));
+            }
+
+            // Neue Trefferliste: alte Markierungen passen nicht mehr
+            const oTable = this.byId("lotTable");
+            oTable.removeSelections(true);
+            this._updateSelectedCount();
+            oTable.getBinding("items").filter(aFilter);
+        }
+    });
+});

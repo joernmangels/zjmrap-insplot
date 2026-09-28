@@ -1,0 +1,29 @@
+# Abhaengigkeiten
+node_modules/
+
+# Build-Ergebnisse
+dist/
+*.mtar
+
+# Logs
+*.log
+npm-debug.log*
+yarn-error.log*
+
+# Betriebssystem
+.DS_Store
+Thumbs.db
+
+# lokale Einstellungen
+.env
+.env.local
+
+# Systemspezifische Konfiguration - enthaelt Hostname, Mandant und
+# Transportauftrag. Vorlagen liegen als *.example im Repository.
+ui5.yaml
+ui5-local.yaml
+ui5-deploy.yaml
+ui5-mock.yaml
+
+# Generator-Metadaten, enthalten die Service-URL mit Hostname
+.appGenInfo.json

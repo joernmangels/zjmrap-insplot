@@ -1,0 +1,13 @@
+unmanaged implementation in class /enercon/qm009_bp_lot unique;
+strict ( 2 );
+
+// Nur Lesen und die Aktion: Der Lauf schreibt nicht ueber RAP, sondern
+// per RFC in eigener LUW (/ENERCON/QM009_STRUK_RUN), weil die Klassen committen
+define behavior for /ENERCON/QM009_I_LOT alias Lot
+lock master
+authorization master ( global )
+{
+  field ( readonly ) Prueflos;
+
+  action aufbauen parameter /ENERCON/QM009_A_AUFBAU result [1] /ENERCON/QM009_A_RUN;
+}

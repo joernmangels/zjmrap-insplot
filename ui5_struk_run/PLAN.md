@@ -172,7 +172,12 @@ Der Report bleibt unverändert.
       (UI5-Linter-Fehler) — erst, wenn die UI5-Version im Kundensystem
       bekannt ist; VID hat 1.136.21.
       — ursprünglich: **Feinschliff** — Zähler, Sortierung, i18n, Busy, leere Zustände.
-- [ ] **13 · Deployment** nach VID, BSP `ZJMQMS_STRUKRUN`.
+- [x] **13 · Deployment** nach VID, BSP `ZJMQMS_STRUKRUN` — 28.09.2026,
+      Paket `ZJMRAP_INSPLOT`, Transport `VIDK901629`, Anwendungsindex
+      aktualisiert. Aufruf `/sap/bc/ui5_ui5/sap/zjmqms_strukrun/index.html`
+      (Mandant 200). Vorher `index.html` auf absolutes UI5
+      (`/sap/public/bc/ui5_ui5/resources/`) umgestellt, Skripte `deploy` und
+      `deploy-test` wie in App 1, Vorlage `ui5-deploy.yaml.example`.
 - [ ] **14 · GitHub** — commit und push.
 
 ---

@@ -1,0 +1,8 @@
+@EndUserText.label: 'Service Definition Strukturaufbau'
+define service /ENERCON/QM009_SD_STRUKRUN {
+  expose /ENERCON/QM009_I_LOT         as Lot;
+  expose /ENERCON/QM009_I_STRUKLOG    as StrukLog;
+  expose /ENERCON/QM009_I_WERK_VH     as WerkVH;
+  expose /ENERCON/QM009_I_PRUEFART_VH as PruefartVH;
+  expose /ENERCON/QM009_I_MAT_VH      as MaterialVH;
+}

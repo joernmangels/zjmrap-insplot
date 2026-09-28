@@ -13,10 +13,6 @@ sap.ui.define([
     // Edm.Date erwartet im Filter einen String "yyyy-MM-dd", kein Date-Objekt
     const oEdmDate = DateFormat.getDateInstance({ pattern: "yyyy-MM-dd" });
 
-    // Namensraum der Aktionen laut $metadata; beim Kunden heisst der Service
-    // anders, dann hier anpassen (PLAN.md, Risiko 3)
-    const ACTION_NS = "com.sap.gateway.srvd.zjmqms_sd_strukrun.v0001.";
-
     // Je Filterfeld: woraus die Wertehilfe liest und welche Eigenschaft
     // uebernommen wird. Gesucht wird per $search (@Search im Backend).
     const VALUE_HELP = {
@@ -85,13 +81,14 @@ sap.ui.define([
                 return;
             }
 
-            // Gebundene Aktion: der Los-Kontext liefert den Schluessel (_it)
-            const oOperation = oLot.getModel().bindContext(ACTION_NS + "aufbauen(...)", oLot);
-            oOperation.setParameter("Echtlauf", bEchtlauf);
-
             const oView = this.getView();
             oView.setBusy(true);
             try {
+                // Gebundene Aktion: der Los-Kontext liefert den Schluessel (_it)
+                const sNamespace = await this._getServiceNamespace(oLot.getModel());
+                const oOperation = oLot.getModel().bindContext(sNamespace + "aufbauen(...)", oLot);
+                oOperation.setParameter("Echtlauf", bEchtlauf);
+
                 await oOperation.execute();
                 // Ergebnis ist der Complex Type ZJMQMS_A_RUN mit der Lauf-ID
                 const sRunId = oOperation.getBoundContext().getProperty("RunId");
@@ -102,6 +99,17 @@ sap.ui.define([
             } finally {
                 oView.setBusy(false);
             }
+        },
+
+        /**
+         * Namensraum der Aktionen aus den Metadaten statt fest im Code: er
+         * haengt am Namen des Service und ist in VID (zjmqms_sd_strukrun)
+         * und beim Kunden (/ENERCON/...) verschieden. $EntityContainer
+         * liefert z. B. "com.sap.gateway.srvd.zjmqms_sd_strukrun.v0001.Container".
+         */
+        async _getServiceNamespace(oModel) {
+            const sContainer = await oModel.getMetaModel().requestObject("/$EntityContainer");
+            return sContainer.slice(0, sContainer.lastIndexOf(".") + 1);
         },
 
         onValueHelp(oEvent) {

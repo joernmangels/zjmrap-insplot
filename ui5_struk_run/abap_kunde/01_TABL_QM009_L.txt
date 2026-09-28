@@ -1,0 +1,24 @@
+@EndUserText.label : 'Protokoll Equipment-Strukturaufbau'
+@AbapCatalog.enhancement.category : #NOT_EXTENSIBLE
+@AbapCatalog.tableCategory : #TRANSPARENT
+@AbapCatalog.deliveryClass : #A
+@AbapCatalog.dataMaintenance : #RESTRICTED
+define table /enercon/qm009_l {
+
+  key client : mandt not null;
+  key run_id : sysuuid_x16 not null;
+  key seq    : abap.int4 not null;
+  prueflos   : qplos;
+  testmode   : abap_boolean;
+  step       : abap.char(5);
+  vornr      : vornr;
+  matnr      : matnr;
+  sernr      : gernr;
+  equnr      : equnr;
+  action     : abap.char(20);
+  status     : symsgty;
+  msg        : abap.char(255);
+  created_by : syuname;
+  created_at : timestampl;
+
+}

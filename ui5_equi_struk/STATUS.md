@@ -34,6 +34,23 @@ Freestyle SAPUI5, 18 Dateien. Funktioniert im Browser: Selektion, Anzeige mit
 Einrückung, Baum-Konnektor, Farbe je Ebene, Ebene per Pfeil und Direkteingabe,
 Zeile vertikal verschieben, Anlegen, Löschen, Meldungsanzeige.
 
+### Ersteinlesung aus dem Prüfplan (28.09.2026)
+
+Knopf „Ersteinlesung" in der Tabellen-Toolbar. Löscht die Zeilen **des
+selektierten Plans** und baut sie aus den Vorgangskurztexten neu auf: Material
+aus den ersten sieben Stellen, Ebene aus `N. Ebene` im Text, erster Vorgang ist
+die Wurzel. Vorgänge ohne Materialnummer werden übersprungen und gemeldet.
+
+Backend: `static action ersteinlesen` (statisch, weil der Plan beim ersten
+Einlesen noch keine Zeile hat), Parameter `ZJMQMS_A_ERSTEINLESUNG`, Ergebnis
+`ZJMQMS_A_EINLESEN_ERG` mit `Deleted`/`Created`/`Skipped`. Vorgänge kommen über
+PLKO → PLAS → PLPO, am Planzähler verankert.
+
+Sonde `ZJMQMS_CL_PROBE_EINLES` (`$TMP`, HARMLESS, ohne `COMMIT ENTITIES`) grün:
+Plan Q/00000004/02 → 7 gelöscht, 7 angelegt, 4 übersprungen.
+
+**Im Browser noch nicht getestet.**
+
 ### Prüfungen
 
 - genau ein Ebenenfeld je Zeile (Fehler)
@@ -106,6 +123,49 @@ Repository.
 
 Danach `ui5-deploy.yaml` aus der Vorlage erzeugen (Host, Mandant, Paket,
 Transport des Zielsystems) und `npm run deploy-test`, dann `npm run deploy`.
+
+---
+
+## Report „Equipment-Struktur aus Prüflos" (VID-200, seit 14.09.2026)
+
+Plan: `~/.claude/plans/mach-dir-mal-gedanken-parsed-finch.md`. Alle Objekte aktiv
+und im Transport `VIDK901614`.
+
+| Objekt | Typ | Aufgabe |
+|---|---|---|
+| `ZJMQMS_CL_LOT_EQUI` | CLAS | QALS, `ZJMQM_QM009_E`, Vorgänge (`I_InspectionOperation`), Serialnummer aus QASE, Equipment suchen/anlegen (`ZJMQM009_ASGN_SERNR_PL_2`) |
+| `ZJMQMS_CL_EQUI_STRUKTUR` | CLAS | Soll-Struktur aus `ZJMQMS_I_EQUISTRUK`, `resolve_parents`, `assign_equipments`, Einbau per `BAPI_EQUI_INSTALL` |
+| `ZJMQMS_R_EQUI_STRUKTUR` | PROG | `s_plos` (Pflicht), `s_werk`, `s_datum`, `p_test` (Vorbelegung X), ALV-Protokoll |
+
+Unit-Tests: `ZJMQMS_CL_EQUI_STRUKTUR` → `LTC_RESOLVE_PARENTS` (5),
+`LTC_ASSIGN_EQUIPMENTS` (5), `LTC_PARENT_FOR_CHILD` (3), alle grün. Quellen
+gespiegelt in `abap/`.
+
+**Zuordnung Strukturzeile → Equipment (17.09.2026, zweimal auf Wunsch geändert):**
+Eine Strukturzeile ist eine Vorlage und bekommt **alle** Equipments ihres
+Materials aus dem Los (drei Vorgänge mit 1076809 → drei Equipments an dieser
+Stelle). Beim Einbau zwischen Kind- und Elternzeile gilt 1:n (ein
+Eltern-Equipment nimmt alle Kinder) oder n:n (paarweise in Vorgangsreihenfolge);
+sonst Fehler „Zuordnung unklar". Dieselbe Regel, wenn ein Material mehrfach in
+der Struktur steht. Eindeutig sein muss nur Material + Serialnummer im Los.
+
+Erster Testlauf (Los 940005101311, Plan Q 50009564/1) hat die
+Serialnummern-Ermittlung aus QASE bestätigt: alle 7 Vorgänge mit Material
+liefern Serialnummer, Equipment 53138275 zum Kopfmaterial bereits vorhanden.
+
+### Offen
+
+1. **Test-Include für `ZJMQMS_CL_LOT_EQUI`** ließ sich über die Schnittstelle
+   nicht anlegen (Klasse existierte schon, CCAU nicht). Quelle liegt in
+   [`abap/ZJMQMS_CL_LOT_EQUI.clas.testclasses.abap`](abap/ZJMQMS_CL_LOT_EQUI.clas.testclasses.abap)
+   → in Eclipse Reiter *Test Classes* einfügen, aktivieren, ausführen.
+2. **Selektionstexte** des Reports (S_PLOS, S_WERK, S_DATUM, P_TEST) fehlen —
+   `SetTextElements` braucht WebSocket, den das System nicht bietet. In SE38
+   → Textelemente → Selektionstexte nachpflegen. Rahmentitel sind im Code.
+3. **Testlauf im Testmodus** auf einem Los mit Serialnummern. Entscheidet die
+   drei Risiken des Bausteins `ZJMQM009_ASGN_SERNR_PL_2` (Profil Z001,
+   SER04 für Untermaterialien, entsteht ein EQUI-Satz?).
+4. Echtlauf, Wiederholungslauf (alle Zeilen „vorhanden").
 
 ---
 

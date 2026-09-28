@@ -98,6 +98,13 @@
                             enabled="{ui>/planSelected}"
                             press=".onAdd"/>
                         <Button
+                            icon="sap-icon://synchronize"
+                            text="{i18n>btnFirstImport}"
+                            tooltip="{i18n>ttFirstImport}"
+                            type="Transparent"
+                            enabled="{ui>/planSelected}"
+                            press=".onFirstImport"/>
+                        <Button
                             icon="sap-icon://refresh"
                             tooltip="{i18n>btnRefresh}"
                             type="Transparent"

@@ -401,6 +401,88 @@ sap.ui.define([
         },
 
         /* ---------------------------------------------------------------- */
+        /* Ersteinlesung aus dem Pruefplan                                  */
+        /* ---------------------------------------------------------------- */
+
+        /**
+         * Baut die Struktur des selektierten Plans aus den Vorgangskurztexten
+         * neu auf. Die vorhandenen Zeilen dieses Plans werden dabei geloescht -
+         * andere Plaene bleiben unberuehrt.
+         */
+        onFirstImport: function () {
+            var oUiModel = this.getView().getModel("ui");
+
+            var sPlanType     = this._normalize(oUiModel.getProperty("/planType"));
+            var sPlanGroup    = this._normalize(oUiModel.getProperty("/planGroup"));
+            var sGroupCounter = this._normalize(oUiModel.getProperty("/groupCounter"));
+            var sNodeCounter  = this._normalize(oUiModel.getProperty("/nodeCounter"));
+
+            if (!sPlanType || !sPlanGroup || !sGroupCounter || !sNodeCounter) {
+                MessageBox.warning(this._text("msgFilterIncomplete"));
+                return;
+            }
+
+            var that = this;
+
+            MessageBox.confirm(
+                this._text("msgFirstImportConfirm", [sPlanType, sPlanGroup, sGroupCounter]), {
+                    title: this._text("msgFirstImportTitle"),
+                    icon: MessageBox.Icon.WARNING,
+                    onClose: function (sAction) {
+                        if (sAction !== MessageBox.Action.OK) {
+                            return;
+                        }
+                        that._runFirstImport({
+                            PlanType:     sPlanType,
+                            PlanGroup:    sPlanGroup,
+                            GroupCounter: sGroupCounter,
+                            NodeCounter:  sNodeCounter
+                        });
+                    }
+                }
+            );
+        },
+
+        /**
+         * Ruft die Aktion 'ersteinlesen'. Sie ist im BO als statische Aktion
+         * definiert - sie haengt an der Entitaetsmenge, nicht an einer Zeile,
+         * weil der Plan beim ersten Einlesen noch gar keine Zeile hat. Deshalb
+         * ein absoluter Bindungspfad mit vorangestelltem '/EquiStruk/' und
+         * kein Kontext als zweites Argument, anders als in _execAction.
+         *
+         * Der Zaehlerstand kommt als Ergebnis zurueck und wird bewusst auch
+         * dann angezeigt, wenn Warnungen vorliegen: uebersprungene Vorgaenge
+         * sind der Normalfall, die Zahlen sind trotzdem die eigentliche
+         * Rueckmeldung. Die Warnungen stehen weiter im Meldungsknopf.
+         */
+        _runFirstImport: function (oParameters) {
+            var that       = this;
+            var oOperation = this.getView().getModel()
+                                 .bindContext("/EquiStruk/" + ACTION_NS + "ersteinlesen(...)");
+
+            Object.keys(oParameters).forEach(function (sName) {
+                oOperation.setParameter(sName, oParameters[sName]);
+            });
+
+            Messaging.removeAllMessages();
+            this._setBusy(true);
+
+            oOperation.execute().then(function () {
+                var oResult = oOperation.getBoundContext().getObject() || {};
+
+                that._refreshTable();
+                that._setBusy(false);
+                MessageToast.show(that._text("msgFirstImportDone", [
+                    oResult.Created, oResult.Deleted, oResult.Skipped
+                ]));
+            }).catch(function (oError) {
+                that._refreshTable();
+                that._setBusy(false);
+                that._showError(oError);
+            });
+        },
+
+        /* ---------------------------------------------------------------- */
         /* Zeile loeschen                                                   */
         /* ---------------------------------------------------------------- */
 

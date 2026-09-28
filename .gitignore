@@ -1,0 +1,8 @@
+# Editor-Einstellungen
+.vscode/
+
+# Versehentlich im Wurzelverzeichnis entstanden - die echten Lock-Dateien
+# liegen in den App-Ordnern. Fuehrender Schraegstrich, damit
+# ui5_equi_struk/package-lock.json und ui5_struk_run/package-lock.json
+# weiterhin versioniert werden.
+/package-lock.json

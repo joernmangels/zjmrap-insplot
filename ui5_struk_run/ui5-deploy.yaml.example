@@ -1,0 +1,33 @@
+# Vorlage - vor dem Deployment nach ui5-deploy.yaml kopieren und ausfuellen.
+# ui5-deploy.yaml selbst ist bewusst nicht im Repository: sie enthaelt
+# Hostname, Mandanten und Transportauftrag des konkreten Systems.
+#
+#   npm run deploy-test   Trockenlauf
+#   npm run deploy        BSP anlegen bzw. aktualisieren
+# Ohne Terminal (z. B. aus einem Skript) bei fiori deploy --yes anhaengen.
+
+specVersion: "4.0"
+metadata:
+  name: de.enercon.qm009.strukrun
+type: application
+
+builder:
+  resources:
+    excludes:
+      - "/test/**"
+      - "/localService/**"
+  customTasks:
+    - name: deploy-to-abap
+      afterTask: generateCachebusterInfo
+      configuration:
+        target:
+          url: https://<host>:<port>
+          client: "<mandant>"
+        app:
+          # BSP-Anwendungsname: maximal 15 Zeichen
+          name: ZJMQMS_STRUKRUN
+          description: Equi-Struktur aufbauen zum Prueflos
+          package: ZJMRAP_INSPLOT
+          transport: <transportauftrag>
+        exclude:
+          - /test/

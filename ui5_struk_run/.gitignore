@@ -27,3 +27,6 @@ ui5-mock.yaml
 
 # Generator-Metadaten, enthalten die Service-URL mit Hostname
 .appGenInfo.json
+
+# Upload-Paket von fiori deploy
+archive.zip

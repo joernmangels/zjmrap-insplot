@@ -172,6 +172,34 @@ Der Report bleibt unverändert.
       (UI5-Linter-Fehler) — erst, wenn die UI5-Version im Kundensystem
       bekannt ist; VID hat 1.136.21.
       — ursprünglich: **Feinschliff** — Zähler, Sortierung, i18n, Busy, leere Zustände.
+- [x] **12b/12c umgesetzt 30.09.2026 (VID)** — Seite auf `sap.f.DynamicPage`,
+      Filterleiste `sap.ui.comp.filterbar.FilterBar` mit
+      `SmartVariantManagement` im Titel, Varianteninhalt über
+      `registerFetchData`/`registerApplyData` (Filterwerte + Sortierung).
+      Zusätzliche Filter Charge, Herkunft (über „Filter anpassen").
+      Sortierung per `ViewSettingsDialog` (Fragment `SortDialog`), serverseitig.
+      Liste `suspended` bis die Standardvariante angewendet ist. Geprüft:
+      Seite rendert (Edge headless), Flex-Dienst wird gelesen
+      (`/sap/bc/lrep/flex/data/de.enercon.qm009.strukrun`), Filter Herkunft
+      im Service ok. **Offen:** Variante speichern/teilen im Browser testen.
+      Werk-Vorbelegung aus SU3 bewusst weggelassen (Standardvariante reicht).
+      Datum per `DynamicDateRange`: in der Variante steht die Regel
+      (`{operator: "LASTDAYSINCLUDED", values: [30]}`), umgerechnet wird erst
+      beim Suchen (`DynamicDateRange.toDates`). `LASTDAYSINCLUDED` statt
+      `LASTDAYS`, weil Letzteres heute ausschließt — in UI5 1.136 gemessen.
+      Bekannte Grenze: Charge nur exakt mit führenden Nullen.
+- [ ] **12b · Varianten für die Filterleiste** (Kundenwunsch 30.09.2026:
+      „Wieso muss ich immer dieselben Daten eingeben?") — nach der
+      Installation im Kundensystem. Eigene Filterleiste durch
+      `sap.ui.comp.filterbar.FilterBar` mit `VariantManagement` ersetzen:
+      benannte Varianten, Standardvariante, für alle freigebbar, gespeichert
+      im Flex-Dienst (LREP) je Benutzer. Zusätzlich Werk aus dem
+      Benutzerparameter vorbelegen (SU3, z. B. `WRK`). Kein Backend nötig.
+- [ ] **12c · Sortieren und Filtern in der Losliste** (Kundenwunsch
+      30.09.2026) — Spalten sortier- und filterbar, z. B. per
+      Tabellen-Personalisierung (`sap.m.p13n.Engine`) oder
+      `ViewSettingsDialog`; mit 12b abstimmen, damit Sortierung und
+      Spaltenauswahl in der Variante mitgespeichert werden.
 - [x] **13 · Deployment** nach VID, BSP `ZJMQMS_STRUKRUN` — 28.09.2026,
       Paket `ZJMRAP_INSPLOT`, Transport `VIDK901629`, Anwendungsindex
       aktualisiert. Aufruf `/sap/bc/ui5_ui5/sap/zjmqms_strukrun/index.html`

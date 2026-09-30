@@ -1,22 +1,91 @@
 <mvc:View controllerName="de.enercon.qm009.strukrun.controller.LotList"
     xmlns:mvc="sap.ui.core.mvc"
+    xmlns:f="sap.f"
+    xmlns:fb="sap.ui.comp.filterbar"
+    xmlns:svm="sap.ui.comp.smartvariants"
     xmlns="sap.m">
-    <Page id="page" title="{i18n>lotListTitle}">
-        <content>
-            <!-- Filterleiste: Enter in einem Feld oder "Suchen" startet die Suche -->
-            <OverflowToolbar id="filterBar">
-                <Input id="prueflosInput" width="12rem" placeholder="{i18n>filterPrueflos}" submit=".onSearch"
-                       showValueHelp="true" valueHelpRequest=".onValueHelp"/>
-                <Input id="werkInput" width="7rem" placeholder="{i18n>filterWerk}" submit=".onSearch"
-                       showValueHelp="true" valueHelpRequest=".onValueHelp"/>
-                <Input id="pruefartInput" width="8rem" placeholder="{i18n>filterPruefart}" submit=".onSearch"
-                       showValueHelp="true" valueHelpRequest=".onValueHelp"/>
-                <Input id="materialInput" width="12rem" placeholder="{i18n>filterMaterial}" submit=".onSearch"
-                       showValueHelp="true" valueHelpRequest=".onValueHelp"/>
-                <DateRangeSelection id="datumRange" width="14rem" placeholder="{i18n>filterDatum}"/>
-                <Button id="searchButton" text="{i18n>search}" type="Emphasized" press=".onSearch"/>
-            </OverflowToolbar>
+    <f:DynamicPage id="lotListPage" toggleHeaderOnTitleClick="true">
+        <!-- Variantenverwaltung als Seitentitel: Varianten sichern, als
+             Standard markieren, fuer alle freigeben (Flex-Dienst /sap/bc/lrep) -->
+        <f:title>
+            <f:DynamicPageTitle id="pageTitle">
+                <f:heading>
+                    <!-- Kein "Automatisch anwenden": die Liste folgt jeder Variante sofort -->
+                    <svm:SmartVariantManagement id="variantManagement"/>
+                </f:heading>
+            </f:DynamicPageTitle>
+        </f:title>
 
+        <f:header>
+            <f:DynamicPageHeader id="pageHeader" pinnable="true">
+                <!-- Enter in einem Feld oder "Start" startet die Suche. Was in
+                     einer Variante landet, bestimmt der Controller (fetchData/applyData) -->
+                <fb:FilterBar id="filterBar"
+                              persistencyKey="de.enercon.qm009.strukrun.LotList"
+                              useToolbar="false"
+                              search=".onSearch"
+                              afterVariantLoad=".onAfterVariantLoad">
+                    <fb:filterGroupItems>
+                        <fb:FilterGroupItem id="fgiPrueflos" groupName="lot" name="Prueflos"
+                                            label="{i18n>filterPrueflos}" visibleInFilterBar="true">
+                            <fb:control>
+                                <Input id="prueflosInput" submit=".onSearch" change=".onFilterFieldChange"
+                                       showValueHelp="true" valueHelpRequest=".onValueHelp"/>
+                            </fb:control>
+                        </fb:FilterGroupItem>
+                        <fb:FilterGroupItem id="fgiWerk" groupName="lot" name="Werk"
+                                            label="{i18n>filterWerk}" visibleInFilterBar="true">
+                            <fb:control>
+                                <Input id="werkInput" submit=".onSearch" change=".onFilterFieldChange"
+                                       showValueHelp="true" valueHelpRequest=".onValueHelp"/>
+                            </fb:control>
+                        </fb:FilterGroupItem>
+                        <fb:FilterGroupItem id="fgiPruefart" groupName="lot" name="Pruefart"
+                                            label="{i18n>filterPruefart}" visibleInFilterBar="true">
+                            <fb:control>
+                                <Input id="pruefartInput" submit=".onSearch" change=".onFilterFieldChange"
+                                       showValueHelp="true" valueHelpRequest=".onValueHelp"/>
+                            </fb:control>
+                        </fb:FilterGroupItem>
+                        <fb:FilterGroupItem id="fgiMaterial" groupName="lot" name="Material"
+                                            label="{i18n>filterMaterial}" visibleInFilterBar="true">
+                            <fb:control>
+                                <Input id="materialInput" submit=".onSearch" change=".onFilterFieldChange"
+                                       showValueHelp="true" valueHelpRequest=".onValueHelp"/>
+                            </fb:control>
+                        </fb:FilterGroupItem>
+                        <fb:FilterGroupItem id="fgiDatum" groupName="lot" name="Entstehungsdatum"
+                                            label="{i18n>filterDatum}" visibleInFilterBar="true">
+                            <fb:control>
+                                <!-- Relative Zeitraeume ("Letzte 30 Tage") bleiben in der
+                                     Variante relativ: gespeichert wird die Regel, nicht das Datum.
+                                     LASTDAYSINCLUDED statt LASTDAYS: das schliesst heute ein,
+                                     sonst fehlen die heute entstandenen Lose -->
+                                <DynamicDateRange id="datumRange" change=".onDateChange"
+                                                  standardOptions="DATE,DATERANGE,FROM,TO,TODAY,YESTERDAY,LASTDAYSINCLUDED,THISWEEK,LASTWEEK,THISMONTH,LASTMONTH,THISYEAR"/>
+                            </fb:control>
+                        </fb:FilterGroupItem>
+                        <!-- Weitere Filter: ueber "Filter anpassen" einblendbar -->
+                        <fb:FilterGroupItem id="fgiCharge" groupName="lot" name="Charge"
+                                            label="{i18n>filterCharge}" visibleInFilterBar="false">
+                            <fb:control>
+                                <Input id="chargeInput" submit=".onSearch" change=".onFilterFieldChange"/>
+                            </fb:control>
+                        </fb:FilterGroupItem>
+                        <fb:FilterGroupItem id="fgiHerkunft" groupName="lot" name="Herkunft"
+                                            label="{i18n>filterHerkunft}" visibleInFilterBar="false">
+                            <fb:control>
+                                <Input id="herkunftInput" maxLength="2" submit=".onSearch" change=".onFilterFieldChange"/>
+                            </fb:control>
+                        </fb:FilterGroupItem>
+                    </fb:filterGroupItems>
+                </fb:FilterBar>
+            </f:DynamicPageHeader>
+        </f:header>
+
+        <f:content>
+            <!-- suspended: erst laden, wenn die Standardvariante angewendet ist,
+                 sonst wird die Liste beim Start doppelt gelesen -->
             <Table id="lotTable"
                    mode="SingleSelectLeft"
                    growing="true"
@@ -27,6 +96,7 @@
                    items="{
                        path: '/Lot',
                        parameters: { $count: true },
+                       suspended: true,
                        sorter: { path: 'Prueflos', descending: true }
                    }">
                 <headerToolbar>
@@ -38,6 +108,8 @@
                                 enabled="{= ${view>/selectedCount} > 0 }" press=".onSimulate"/>
                         <Button id="buildButton" text="{i18n>build}" icon="sap-icon://process" type="Emphasized"
                                 enabled="{= ${view>/selectedCount} > 0 }" press=".onBuild"/>
+                        <Button id="sortButton" icon="sap-icon://sort" tooltip="{i18n>sortTooltip}"
+                                press=".onOpenSortDialog"/>
                     </OverflowToolbar>
                 </headerToolbar>
                 <columns>
@@ -61,6 +133,6 @@
                     </ColumnListItem>
                 </items>
             </Table>
-        </content>
-    </Page>
+        </f:content>
+    </f:DynamicPage>
 </mvc:View>

@@ -1,0 +1,16 @@
+<core:FragmentDefinition
+    xmlns="sap.m"
+    xmlns:core="sap.ui.core">
+    <!-- Sortierung der Losliste; die Keys sind die Eigenschaften im Service.
+         Welche gilt, steht in view>/sort und wird in der Variante gespeichert. -->
+    <ViewSettingsDialog id="sortDialog" confirm=".onSortConfirm">
+        <sortItems>
+            <ViewSettingsItem id="sortPrueflos" key="Prueflos" text="{i18n>colPrueflos}"/>
+            <ViewSettingsItem id="sortWerk" key="Werk" text="{i18n>colWerk}"/>
+            <ViewSettingsItem id="sortPruefart" key="Pruefart" text="{i18n>colPruefart}"/>
+            <ViewSettingsItem id="sortMaterial" key="Material" text="{i18n>colMaterial}"/>
+            <ViewSettingsItem id="sortDatum" key="Entstehungsdatum" text="{i18n>colDatum}"/>
+            <ViewSettingsItem id="sortMenge" key="Losmenge" text="{i18n>colMenge}"/>
+        </sortItems>
+    </ViewSettingsDialog>
+</core:FragmentDefinition>

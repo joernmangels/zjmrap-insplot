@@ -17,10 +17,12 @@
                           title="{i18n>runLogPrueflos} {Prueflos}"
                           responsive="true">
                 <statuses>
-                    <!-- Simulation deutlich kennzeichnen, sonst haelt man sie fuer einen Echtlauf -->
+                    <!-- Simulation deutlich kennzeichnen, sonst haelt man sie fuer einen Echtlauf.
+                         %{...} statt ${...}: OData V4 liefert bei ${...} den formatierten
+                         Text ("Ja"/"Nein") - beides waere "wahr" und es stuende immer Simulation da -->
                     <ObjectStatus id="modeStatus"
-                                  text="{= ${Testmodus} ? ${i18n>runModeSimulation} : ${i18n>runModeEchtlauf} }"
-                                  state="{= ${Testmodus} ? 'Information' : 'Success' }"
+                                  text="{= %{Testmodus} ? ${i18n>runModeSimulation} : ${i18n>runModeEchtlauf} }"
+                                  state="{= %{Testmodus} ? 'Information' : 'Success' }"
                                   inverted="true"/>
                 </statuses>
                 <attributes>
